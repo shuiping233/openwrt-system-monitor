@@ -1,6 +1,8 @@
 //go:build linux
 // +build linux
 
+//go:generate bpf2go -target bpf -output-dir ./pkg/ebpf -go-package ebpf Bpf ./ebpf/monitor.c -- -I/usr/include/bpf
+
 package main
 
 import (

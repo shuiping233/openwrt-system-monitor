@@ -4,6 +4,7 @@ project_name: diskio
 
 before:
   hooks:
+    - go generate ./...
     - go mod tidy
     - scripts/build-frontend.sh
     
