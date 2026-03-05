@@ -454,7 +454,11 @@ const columns = [
   // 协议
   columnHelper.accessor('protocol', {
     header: '协议',
-    cell: (info) => h('span', { class: 'bg-slate-700 px-2 py-1 rounded text-xs text-slate-200' }, info.getValue()?.toUpperCase()),
+    cell: (info) => {
+      const protocol = info.getValue()?.toUpperCase();
+      const colorClass = protocol === 'TCP' ? 'text-blue-400' : protocol === 'UDP' ? 'text-violet-400' : 'text-slate-200';
+      return h('span', { class: `bg-slate-700 px-2 py-1 rounded text-xs ${colorClass}` }, protocol);
+    },
     enableSorting: true,
     sortingFn: createSingleSortFn('protocol'),
   }),
@@ -815,20 +819,20 @@ const getConnectionSortIcon = (columnId: string): string => {
     <!-- Counts -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
       <div
-        class="bg-slate-800 border border-slate-700 rounded-xl p-5 border-t-4 border-t-blue-500 flex items-center justify-between">
+        class="bg-slate-800 border border-slate-700 rounded-xl p-5 border-t-4 border-t-blue-400 flex items-center justify-between">
         <div>
           <div class="text-slate-400 text-sm">TCP 连接</div>
           <div class="text-3xl font-bold">{{ connectionData?.counts?.tcp || 0 }}</div>
         </div>
-        <div class="text-blue-500/20 text-4xl">T</div>
+        <div class="text-blue-400/20 text-4xl">T</div>
       </div>
       <div
-        class="bg-slate-800 border border-slate-700 rounded-xl p-5 border-t-4 border-t-violet-500 flex items-center justify-between">
+        class="bg-slate-800 border border-slate-700 rounded-xl p-5 border-t-4 border-t-violet-400 flex items-center justify-between">
         <div>
           <div class="text-slate-400 text-sm">UDP 连接</div>
           <div class="text-3xl font-bold">{{ connectionData?.counts?.udp || 0 }}</div>
         </div>
-        <div class="text-violet-500/20 text-4xl">U</div>
+        <div class="text-violet-400/20 text-4xl">U</div>
       </div>
       <div
         class="bg-slate-800 border border-slate-700 rounded-xl p-5 border-t-4 border-t-white flex items-center justify-between">
@@ -860,7 +864,7 @@ const getConnectionSortIcon = (columnId: string): string => {
         <div class="px-4 py-3 border-b border-slate-700 flex justify-end">
           <div class="relative">
             <input v-model="aggregationFilter" placeholder="搜索 IP、流量、连接数..."
-              class="bg-slate-900 border border-slate-600 text-white text-xs px-3 py-1.5 pr-8 rounded w-56 outline-none focus:border-blue-500" />
+              class="bg-slate-900 border border-slate-600 text-white text-xs px-3 py-1.5 pr-8 rounded w-56 outline-none focus:border-blue-400" />
             <button v-if="aggregationFilter" @click="aggregationFilter = ''"
               class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs w-4 h-4 flex items-center justify-center rounded hover:bg-slate-700 transition-colors"
               title="清空搜索">
@@ -972,9 +976,9 @@ const getConnectionSortIcon = (columnId: string): string => {
                           formatTraffic(group.totalUpload) }}</span></span>
                         <span class="text-slate-400">累计下行流量: <span class="text-cyan-400 font-mono">{{
                           formatTraffic(group.totalDownload) }}</span></span>
-                        <span class="text-slate-400">TCP: <span class="text-blue-500 font-mono">{{
+                        <span class="text-slate-400">TCP: <span class="text-blue-400 font-mono">{{
                           group.totalTcp }}</span></span>
-                        <span class="text-slate-400">UDP: <span class="text-violet-500 font-mono">{{
+                        <span class="text-slate-400">UDP: <span class="text-violet-400 font-mono">{{
                           group.totalUdp }}</span></span>
                         <span class="text-slate-400">其他: <span class="text-slate-200 font-mono">{{
                           group.totalOther }}</span></span>
@@ -1025,10 +1029,10 @@ const getConnectionSortIcon = (columnId: string): string => {
                       }}</span>
                   </td>
                   <td class="px-3 py-2 text-center">
-                    <span class="font-mono text-blue-500">{{ ipStats.tcpCount }}</span>
+                    <span class="font-mono text-blue-400">{{ ipStats.tcpCount }}</span>
                   </td>
                   <td class="px-3 py-2 text-center">
-                    <span class="font-mono text-violet-500">{{ ipStats.udpCount }}</span>
+                    <span class="font-mono text-violet-400">{{ ipStats.udpCount }}</span>
                   </td>
                   <td class="px-3 py-2 text-center">
                     <span class="font-mono text-slate-200">{{ ipStats.otherCount }}</span>
@@ -1064,7 +1068,7 @@ const getConnectionSortIcon = (columnId: string): string => {
         <div class="px-4 py-3 border-b border-slate-700 flex justify-end">
           <div class="relative">
             <input v-model="globalFilter" placeholder="全局搜索..."
-              class="bg-slate-900 border border-slate-600 text-white text-xs px-3 py-1.5 pr-8 rounded w-56 outline-none focus:border-blue-500" />
+              class="bg-slate-900 border border-slate-600 text-white text-xs px-3 py-1.5 pr-8 rounded w-56 outline-none focus:border-blue-400" />
             <button v-if="globalFilter" @click="globalFilter = ''"
               class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs w-4 h-4 flex items-center justify-center rounded hover:bg-slate-700 transition-colors"
               title="清空搜索">
@@ -1129,8 +1133,8 @@ const getConnectionSortIcon = (columnId: string): string => {
             <!-- 自定义输入框 -->
             <div class="flex items-center gap-1">
               <input v-model="customPageSize" type="number" min="1" placeholder="自定义"
-                class="w-16 text-xs px-2 py-1 rounded bg-slate-900 border border-slate-600 text-white outline-none focus:border-blue-500 text-center"
-                :class="{ 'border-blue-500': isCustomPageSize }" @change="handleCustomPageSizeChange"
+                class="w-16 text-xs px-2 py-1 rounded bg-slate-900 border border-slate-600 text-white outline-none focus:border-blue-400 text-center"
+                :class="{ 'border-blue-400': isCustomPageSize }" @change="handleCustomPageSizeChange"
                 @keyup.enter="handleCustomPageSizeChange" />
               <span class="text-xs text-slate-400">条</span>
             </div>
@@ -1148,7 +1152,7 @@ const getConnectionSortIcon = (columnId: string): string => {
               </button>
               <div class="flex items-center gap-1 px-2">
                 <input v-model="pageInputValue" type="number" min="1" :max="table.getPageCount() || 1"
-                  class="w-15 text-xs px-2 py-1 rounded bg-slate-900 border border-slate-600 text-white outline-none focus:border-blue-500 text-left"
+                  class="w-15 text-xs px-2 py-1 rounded bg-slate-900 border border-slate-600 text-white outline-none focus:border-blue-400 text-left"
                   @change="jumpToPage" @keyup.enter="jumpToPage" />
                 <span class="text-xs text-slate-400">/ {{ table.getPageCount() || 1 }}</span>
               </div>
