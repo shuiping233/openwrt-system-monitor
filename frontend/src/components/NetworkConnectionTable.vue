@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, h, watch, reactive, onMounted } from 'vue';
+import { ref, computed, h, watch, reactive, onMounted, nextTick } from 'vue';
 import {
   useVueTable,
   getCoreRowModel,
   getSortedRowModel,
   getFilteredRowModel,
+  getPaginationRowModel,
   FlexRender,
   createColumnHelper,
   SortingState,
@@ -15,6 +16,7 @@ import { compressIPv6 } from '../utils/ipv6';
 import { convertToBytes, BytesFixed, formatIOBytes, normalizeToBytes, formatDataBytes } from '../utils/convert';
 import { useToast } from '../useToast';
 import { useDatabase } from '../useDatabase';
+import { useSettings } from '../useSettings';
 
 // Props
 const props = defineProps<{
@@ -452,7 +454,11 @@ const columns = [
   // 协议
   columnHelper.accessor('protocol', {
     header: '协议',
-    cell: (info) => h('span', { class: 'bg-slate-700 px-2 py-1 rounded text-xs text-slate-200' }, info.getValue()?.toUpperCase()),
+    cell: (info) => {
+      const protocol = info.getValue()?.toUpperCase();
+      const colorClass = protocol === 'TCP' ? 'text-blue-400' : protocol === 'UDP' ? 'text-violet-400' : 'text-slate-200';
+      return h('span', { class: `bg-slate-700 px-2 py-1 rounded text-xs ${colorClass}` }, protocol);
+    },
     enableSorting: true,
     sortingFn: createSingleSortFn('protocol'),
   }),
@@ -607,6 +613,154 @@ const columns = [
   }),
 ];
 
+// ================= 分页相关配置 =================
+const { settings, setConfig } = useSettings();
+
+// 分页大小选项
+const pageSizeOptions = [20, 50, 100, 500, 1000];
+
+// 分页大小 - 从配置读取
+const pageSize = ref(settings.network_table_page_size || pageSizeOptions[0]);
+
+// 是否是自定义分页大小
+const isCustomPageSize = ref(!pageSizeOptions.includes(pageSize.value));
+
+// 自定义分页大小输入值
+const customPageSize = ref(isCustomPageSize.value ? String(pageSize.value) : '');
+
+// 当前页码（从0开始）
+const currentPage = ref(0);
+
+// 用户期望的页码（用于数据刷新时保持页码）
+const desiredPageIndex = ref(0);
+
+// 页码输入框的值
+const pageInputValue = ref('1');
+
+// 受控分页状态 - 必须在 table 和 watch 之前定义
+const pagination = ref({
+  pageSize: pageSize.value,
+  pageIndex: currentPage.value,
+});
+
+// 当配置加载完成后，同步分页大小
+watch(() => settings.network_table_page_size, (newValue) => {
+  if (newValue && newValue !== pageSize.value) {
+    pageSize.value = newValue;
+    isCustomPageSize.value = !pageSizeOptions.includes(newValue);
+    if (isCustomPageSize.value) {
+      customPageSize.value = String(newValue);
+    }
+    // 同步更新 pagination 的 pageSize
+    pagination.value = {
+      ...pagination.value,
+      pageSize: newValue,
+    };
+  }
+}, { immediate: true });
+
+// 同步页码输入框与当前页
+watch(currentPage, (newPage) => {
+  pageInputValue.value = String(newPage + 1);
+}, { immediate: true });
+
+// 跳转到指定页
+const jumpToPage = () => {
+  const targetPage = parseInt(pageInputValue.value, 10);
+  if (isNaN(targetPage) || targetPage < 1) {
+    // 无效输入，重置为当前页
+    pageInputValue.value = String(currentPage.value + 1);
+    return;
+  }
+  const totalPages = table.getPageCount();
+  if (totalPages === 0) return;
+
+  // 限制在有效范围内
+  const validPage = Math.min(Math.max(targetPage, 1), totalPages);
+  const newIndex = validPage - 1;
+
+  desiredPageIndex.value = newIndex;
+  pagination.value = {
+    ...pagination.value,
+    pageIndex: newIndex,
+  };
+  currentPage.value = newIndex;
+  pageInputValue.value = String(validPage);
+};
+
+// 处理分页大小变更
+const handlePageSizeChange = async (value: string) => {
+  const newSize = parseInt(value, 10);
+  if (!isNaN(newSize) && newSize > 0) {
+    pageSize.value = newSize;
+    // 切换分页大小时保持当前页码，但确保页码有效
+    const totalPages = Math.ceil(table.getFilteredRowModel().rows.length / newSize);
+    const newPageIndex = Math.min(desiredPageIndex.value, totalPages - 1);
+    desiredPageIndex.value = newPageIndex;
+    currentPage.value = newPageIndex;
+    pagination.value = {
+      pageSize: newSize,
+      pageIndex: newPageIndex,
+    };
+    await setConfig('network_table_page_size', newSize);
+  }
+};
+
+// 处理自定义分页大小变更
+const handleCustomPageSizeChange = async () => {
+  const value = parseInt(customPageSize.value, 10);
+  if (!isNaN(value) && value > 0) {
+    pageSize.value = value;
+    // 切换分页大小时保持当前页码，但确保页码有效
+    const totalPages = Math.ceil(table.getFilteredRowModel().rows.length / value);
+    const newPageIndex = Math.min(desiredPageIndex.value, totalPages - 1);
+    desiredPageIndex.value = newPageIndex;
+    currentPage.value = newPageIndex;
+    pagination.value = {
+      pageSize: value,
+      pageIndex: newPageIndex,
+    };
+    await setConfig('network_table_page_size', value);
+  }
+};
+
+// 切换到预设分页大小
+const switchToPresetSize = async (size: number) => {
+  pageSize.value = size;
+  isCustomPageSize.value = false;
+  customPageSize.value = '';
+  // 切换分页大小时保持当前页码，但确保页码有效
+  const totalPages = Math.ceil(table.getFilteredRowModel().rows.length / size);
+  const newPageIndex = Math.min(desiredPageIndex.value, totalPages - 1);
+  desiredPageIndex.value = newPageIndex;
+  currentPage.value = newPageIndex;
+  pagination.value = {
+    pageSize: size,
+    pageIndex: newPageIndex,
+  };
+  await setConfig('network_table_page_size', size);
+};
+
+// 监听数据变化，仅处理页码越界的情况
+watch(displayData, () => {
+  // 使用 nextTick 确保 TanStack Table 已经处理了数据变化
+  nextTick(() => {
+    const totalPages = Math.max(1, table.getPageCount());
+    const currentIndex = pagination.value.pageIndex;
+
+    // 如果当前页码超过最大页数，跳到最后一页
+    if (currentIndex >= totalPages) {
+      const newIndex = totalPages - 1;
+      desiredPageIndex.value = newIndex;
+      pagination.value = {
+        ...pagination.value,
+        pageIndex: newIndex,
+      };
+      currentPage.value = newIndex;
+    }
+  });
+}, { immediate: true });
+
 // 初始状态 - 只允许同时排列一行
 const initialSorting = [{ id: 'traffic', desc: true }] as SortingState;
 
@@ -616,7 +770,9 @@ const table = useVueTable({
   getCoreRowModel: getCoreRowModel(),
   getSortedRowModel: getSortedRowModel(),
   getFilteredRowModel: getFilteredRowModel(),
+  getPaginationRowModel: getPaginationRowModel(),
   enableMultiSort: false, // 只允许同时排列一行
+  autoResetPageIndex: false, // 禁用数据变化时自动重置到第一页
   getRowId: (row, index, parent) => {
     // 为每个连接创建一个标准化的唯一ID
     const endpointA = `${row.source_ip}:${row.source_port}`;
@@ -627,7 +783,10 @@ const table = useVueTable({
     // 添加一个稳定的唯一标识符，基于连接信息和原始索引
     return `${baseId}-${row.traffic.value}-${row.packets}-${index}`;
   },
-  initialState: {
+  state: {
+    get pagination() {
+      return pagination.value;
+    },
     sorting: initialSorting,
     columnFilters: [],
     globalFilter: globalFilter.value,
@@ -636,6 +795,14 @@ const table = useVueTable({
     const search = String(value).toLowerCase();
     const rowStr = Object.values(row.original).join(' ').toLowerCase();
     return rowStr.includes(search);
+  },
+  onPaginationChange: (updater) => {
+    const newPagination = typeof updater === 'function'
+      ? updater(pagination.value)
+      : updater;
+    desiredPageIndex.value = newPagination.pageIndex;
+    pagination.value = newPagination;
+    currentPage.value = newPagination.pageIndex;
   },
 });
 
@@ -652,20 +819,20 @@ const getConnectionSortIcon = (columnId: string): string => {
     <!-- Counts -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
       <div
-        class="bg-slate-800 border border-slate-700 rounded-xl p-5 border-t-4 border-t-blue-500 flex items-center justify-between">
+        class="bg-slate-800 border border-slate-700 rounded-xl p-5 border-t-4 border-t-blue-400 flex items-center justify-between">
         <div>
           <div class="text-slate-400 text-sm">TCP 连接</div>
           <div class="text-3xl font-bold">{{ connectionData?.counts?.tcp || 0 }}</div>
         </div>
-        <div class="text-blue-500/20 text-4xl">T</div>
+        <div class="text-blue-400/20 text-4xl">T</div>
       </div>
       <div
-        class="bg-slate-800 border border-slate-700 rounded-xl p-5 border-t-4 border-t-violet-500 flex items-center justify-between">
+        class="bg-slate-800 border border-slate-700 rounded-xl p-5 border-t-4 border-t-violet-400 flex items-center justify-between">
         <div>
           <div class="text-slate-400 text-sm">UDP 连接</div>
           <div class="text-3xl font-bold">{{ connectionData?.counts?.udp || 0 }}</div>
         </div>
-        <div class="text-violet-500/20 text-4xl">U</div>
+        <div class="text-violet-400/20 text-4xl">U</div>
       </div>
       <div
         class="bg-slate-800 border border-slate-700 rounded-xl p-5 border-t-4 border-t-white flex items-center justify-between">
@@ -697,7 +864,7 @@ const getConnectionSortIcon = (columnId: string): string => {
         <div class="px-4 py-3 border-b border-slate-700 flex justify-end">
           <div class="relative">
             <input v-model="aggregationFilter" placeholder="搜索 IP、流量、连接数..."
-              class="bg-slate-900 border border-slate-600 text-white text-xs px-3 py-1.5 pr-8 rounded w-56 outline-none focus:border-blue-500" />
+              class="bg-slate-900 border border-slate-600 text-white text-xs px-3 py-1.5 pr-8 rounded w-56 outline-none focus:border-blue-400" />
             <button v-if="aggregationFilter" @click="aggregationFilter = ''"
               class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs w-4 h-4 flex items-center justify-center rounded hover:bg-slate-700 transition-colors"
               title="清空搜索">
@@ -783,275 +950,99 @@ const getConnectionSortIcon = (columnId: string): string => {
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-700">
-              <!-- 局域网IP分组 -->
-              <tr class="bg-slate-700/30 hover:bg-slate-700/50 transition-colors cursor-pointer"
-                @click="toggleIpGroup('lan')">
-                <td colspan="10" class="px-3 py-3 text-left">
-                  <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                      <span class="text-slate-500 transition-transform duration-300"
-                        :class="{ 'rotate-180': !uiState.ipGroupCollapsed.lan }">▼</span>
-                      <span class="font-semibold text-slate-200">{{ aggregationData.lan.name }}</span>
-                      <span class="text-xs text-slate-500">({{ aggregationData.lan.ips.length }} 个 IP)</span>
+              <template v-for="group in [aggregationData.lan, aggregationData.wan, aggregationData.unknown]"
+                :key="group.key">
+                <!-- 分组标题行 -->
+                <tr class="bg-slate-700/30 hover:bg-slate-700/50 transition-colors cursor-pointer"
+                  @click="toggleIpGroup(group.key)">
+                  <td colspan="10" class="px-3 py-3 text-left">
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-2">
+                        <span class="text-slate-500 transition-transform duration-300"
+                          :class="{ 'rotate-180': !uiState.ipGroupCollapsed[group.key] }">▼</span>
+                        <span class="font-semibold text-slate-200">{{ group.name }}</span>
+                        <span class="text-xs text-slate-500">({{ group.ips.length }} 个 IP)</span>
+                      </div>
+                      <div class="flex items-center gap-4 text-xs">
+                        <span class="text-slate-400">总实时速率: <span class="text-slate-200 font-mono">{{
+                          formatThroughput(group.totalThroughput) }}</span></span>
+                        <span class="text-slate-400">上行速率: <span class="text-orange-400 font-mono">{{
+                          formatThroughput(group.UploadThroughput) }}</span></span>
+                        <span class="text-slate-400">下行速率: <span class="text-cyan-400 font-mono">{{
+                          formatThroughput(group.DownloadThroughput) }}</span></span>
+                        <span class="text-slate-400">累计上下行流量: <span class="text-slate-200 font-mono">{{
+                          formatTraffic(group.totalTraffic) }}</span></span>
+                        <span class="text-slate-400">累计上行流量: <span class="text-orange-400 font-mono">{{
+                          formatTraffic(group.totalUpload) }}</span></span>
+                        <span class="text-slate-400">累计下行流量: <span class="text-cyan-400 font-mono">{{
+                          formatTraffic(group.totalDownload) }}</span></span>
+                        <span class="text-slate-400">TCP: <span class="text-blue-400 font-mono">{{
+                          group.totalTcp }}</span></span>
+                        <span class="text-slate-400">UDP: <span class="text-violet-400 font-mono">{{
+                          group.totalUdp }}</span></span>
+                        <span class="text-slate-400">其他: <span class="text-slate-200 font-mono">{{
+                          group.totalOther }}</span></span>
+                      </div>
                     </div>
-                    <div class="flex items-center gap-4 text-xs">
-                      <span class="text-slate-400">总实时速率: <span class="text-slate-200 font-mono">{{
-                        formatThroughput(aggregationData.lan.totalThroughput) }}</span></span>
-                      <span class="text-slate-400">上行速率: <span class="text-orange-400 font-mono">{{
-                        formatThroughput(aggregationData.lan.UploadThroughput) }}</span></span>
-                      <span class="text-slate-400">下行速率: <span class="text-cyan-400 font-mono">{{
-                        formatThroughput(aggregationData.lan.DownloadThroughput) }}</span></span>
-                      <span class="text-slate-400">累计上下行流量: <span class="text-slate-200 font-mono">{{
-                        formatTraffic(aggregationData.lan.totalTraffic) }}</span></span>
-                      <span class="text-slate-400">累计上行流量: <span class="text-orange-400 font-mono">{{
-                        formatTraffic(aggregationData.lan.totalUpload) }}</span></span>
-                      <span class="text-slate-400">累计下行流量: <span class="text-cyan-400 font-mono">{{
-                        formatTraffic(aggregationData.lan.totalDownload) }}</span></span>
-                      <span class="text-slate-400">TCP: <span class="text-slate-200 font-mono">{{
-                        aggregationData.lan.totalTcp }}</span></span>
-                      <span class="text-slate-400">UDP: <span class="text-slate-200 font-mono">{{
-                        aggregationData.lan.totalUdp }}</span></span>
-                      <span class="text-slate-400">其他: <span class="text-slate-200 font-mono">{{
-                        aggregationData.lan.totalOther }}</span></span>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-              <!-- 局域网IP详细行 -->
-              <tr v-for="ipStats in aggregationData.lan.ips" :key="ipStats.ip" v-show="!uiState.ipGroupCollapsed.lan"
-                class="hover:bg-slate-700/30 transition-colors">
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-slate-300">{{ ipStats.ip }}</span>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-slate-200">{{
-                    BytesFixed(ipStats.totalThroughput.value, ipStats.totalThroughput.unit) }} {{
-                      ipStats.totalThroughput.unit
-                    }}</span>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-orange-400">{{
-                    BytesFixed(ipStats.uploadThroughput.value, ipStats.uploadThroughput.unit) }} {{
-                      ipStats.uploadThroughput.unit
-                    }}</span>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-cyan-400">{{
-                    BytesFixed(ipStats.downloadThroughput.value, ipStats.downloadThroughput.unit) }} {{
-                      ipStats.downloadThroughput.unit
-                    }}</span>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-slate-200">{{
-                    BytesFixed(ipStats.totalTraffic.value, ipStats.totalTraffic.unit) }} {{
-                      ipStats.totalTraffic.unit
-                    }}</span>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-orange-400">{{
-                    BytesFixed(ipStats.totalUpload.value, ipStats.totalUpload.unit) }} {{
-                      ipStats.totalUpload.unit
-                    }}</span>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-cyan-400">{{
-                    BytesFixed(ipStats.totalDownload.value, ipStats.totalDownload.unit) }} {{
-                      ipStats.totalDownload.unit
-                    }}</span>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-slate-200">{{ ipStats.tcpCount }}</span>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-slate-200">{{ ipStats.udpCount }}</span>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-slate-200">{{ ipStats.otherCount }}</span>
-                </td>
-              </tr>
-              <tr v-if="aggregationData.lan.ips.length === 0 && !uiState.ipGroupCollapsed.lan">
-                <td colspan="10" class="px-5 py-4 text-center text-slate-500 text-xs">暂无局域网IP数据</td>
-              </tr>
-
-              <!-- 外网IP分组 -->
-              <tr class="bg-slate-700/30 hover:bg-slate-700/50 transition-colors cursor-pointer"
-                @click="toggleIpGroup('wan')">
-                <td colspan="10" class="px-3 py-3 text-left">
-                  <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                      <span class="text-slate-500 transition-transform duration-300"
-                        :class="{ 'rotate-180': !uiState.ipGroupCollapsed.wan }">▼</span>
-                      <span class="font-semibold text-slate-200">{{ aggregationData.wan.name }}</span>
-                      <span class="text-xs text-slate-500">({{ aggregationData.wan.ips.length }} 个 IP)</span>
-                    </div>
-                    <div class="flex items-center gap-4 text-xs">
-                      <span class="text-slate-400">总实时速率: <span class="text-slate-200 font-mono">{{
-                        formatThroughput(aggregationData.wan.totalThroughput) }}</span></span>
-                      <span class="text-slate-400">上行速率: <span class="text-orange-400 font-mono">{{
-                        formatThroughput(aggregationData.wan.UploadThroughput) }}</span></span>
-                      <span class="text-slate-400">下行速率: <span class="text-cyan-400 font-mono">{{
-                        formatThroughput(aggregationData.wan.DownloadThroughput) }}</span></span>
-                      <span class="text-slate-400">累计上下行流量: <span class="text-slate-200 font-mono">{{
-                        formatTraffic(aggregationData.wan.totalTraffic) }}</span></span>
-                      <span class="text-slate-400">累计上行流量: <span class="text-orange-400 font-mono">{{
-                        formatTraffic(aggregationData.wan.totalUpload) }}</span></span>
-                      <span class="text-slate-400">累计下行流量: <span class="text-cyan-400 font-mono">{{
-                        formatTraffic(aggregationData.wan.totalDownload) }}</span></span>
-                      <span class="text-slate-400">TCP: <span class="text-slate-200 font-mono">{{
-                        aggregationData.wan.totalTcp }}</span></span>
-                      <span class="text-slate-400">UDP: <span class="text-slate-200 font-mono">{{
-                        aggregationData.wan.totalUdp }}</span></span>
-                      <span class="text-slate-400">其他: <span class="text-slate-200 font-mono">{{
-                        aggregationData.wan.totalOther }}</span></span>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-              <!-- 外网IP详细行 -->
-              <tr v-for="ipStats in aggregationData.wan.ips" :key="ipStats.ip" v-show="!uiState.ipGroupCollapsed.wan"
-                class="hover:bg-slate-700/30 transition-colors">
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-slate-300">{{ ipStats.ip }}</span>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-slate-200">{{ BytesFixed(ipStats.totalThroughput.value,
-                    ipStats.totalThroughput.unit) }} {{
-                      ipStats.totalThroughput.unit
-                    }}</span>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-orange-400">{{ BytesFixed(ipStats.uploadThroughput.value,
-                    ipStats.uploadThroughput.unit) }} {{
-                      ipStats.uploadThroughput.unit
-                    }}</span>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-cyan-400">{{ BytesFixed(ipStats.downloadThroughput.value,
-                    ipStats.downloadThroughput.unit) }} {{
-                      ipStats.downloadThroughput.unit
-                    }}</span>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-slate-200">{{ BytesFixed(ipStats.totalTraffic.value,
-                    ipStats.totalTraffic.unit) }} {{
-                      ipStats.totalTraffic.unit
-                    }}</span>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-orange-400">{{ BytesFixed(ipStats.totalUpload.value,
-                    ipStats.totalUpload.unit) }} {{
-                      ipStats.totalUpload.unit
-                    }}</span>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-cyan-400">{{ BytesFixed(ipStats.totalDownload.value,
-                    ipStats.totalDownload.unit) }} {{
-                      ipStats.totalDownload.unit
-                    }}</span>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-slate-200">{{ ipStats.tcpCount }}</span>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-slate-200">{{ ipStats.udpCount }}</span>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-slate-200">{{ ipStats.otherCount }}</span>
-                </td>
-              </tr>
-              <tr v-if="aggregationData.wan.ips.length === 0 && !uiState.ipGroupCollapsed.wan">
-                <td colspan="10" class="px-5 py-4 text-center text-slate-500 text-xs">暂无外网IP数据</td>
-              </tr>
-
-              <!-- 未知IP分组 -->
-              <tr class="bg-slate-700/30 hover:bg-slate-700/50 transition-colors cursor-pointer"
-                @click="toggleIpGroup('unknown')">
-                <td colspan="10" class="px-3 py-3 text-left">
-                  <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                      <span class="text-slate-500 transition-transform duration-300"
-                        :class="{ 'rotate-180': !uiState.ipGroupCollapsed.unknown }">▼</span>
-                      <span class="font-semibold text-slate-200">{{ aggregationData.unknown.name }}</span>
-                      <span class="text-xs text-slate-500">({{ aggregationData.unknown.ips.length }} 个 IP)</span>
-                    </div>
-                    <div class="flex items-center gap-4 text-xs">
-                      <span class="text-slate-400">总实时速率: <span class="text-slate-200 font-mono">{{
-                        formatThroughput(aggregationData.unknown.totalThroughput) }}</span></span>
-                      <span class="text-slate-400">上行速率: <span class="text-orange-400 font-mono">{{
-                        formatThroughput(aggregationData.unknown.UploadThroughput) }}</span></span>
-                      <span class="text-slate-400">下行速率: <span class="text-cyan-400 font-mono">{{
-                        formatThroughput(aggregationData.unknown.DownloadThroughput) }}</span></span>
-                      <span class="text-slate-400">累计上下行流量: <span class="text-slate-200 font-mono">{{
-                        formatTraffic(aggregationData.unknown.totalTraffic) }}</span></span>
-                      <span class="text-slate-400">累计上行流量: <span class="text-orange-400 font-mono">{{
-                        formatTraffic(aggregationData.unknown.totalUpload) }}</span></span>
-                      <span class="text-slate-400">累计下行流量: <span class="text-cyan-400 font-mono">{{
-                        formatTraffic(aggregationData.unknown.totalDownload) }}</span></span>
-                      <span class="text-slate-400">TCP: <span class="text-slate-200 font-mono">{{
-                        aggregationData.unknown.totalTcp }}</span></span>
-                      <span class="text-slate-400">UDP: <span class="text-slate-200 font-mono">{{
-                        aggregationData.unknown.totalUdp }}</span></span>
-                      <span class="text-slate-400">其他: <span class="text-slate-200 font-mono">{{
-                        aggregationData.unknown.totalOther }}</span></span>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-              <!-- 未知IP详细行 -->
-              <tr v-for="ipStats in aggregationData.unknown.ips" :key="ipStats.ip"
-                v-show="!uiState.ipGroupCollapsed.unknown" class="hover:bg-slate-700/30 transition-colors">
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-slate-300">{{ ipStats.ip }}</span>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-slate-200">{{ BytesFixed(ipStats.totalThroughput.value,
-                    ipStats.totalThroughput.unit) }} {{
-                      ipStats.totalThroughput.unit
-                    }}</span>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-orange-400">{{ BytesFixed(ipStats.uploadThroughput.value,
-                    ipStats.uploadThroughput.unit) }} {{
-                      ipStats.uploadThroughput.unit
-                    }}</span>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-cyan-400">{{ BytesFixed(ipStats.downloadThroughput.value,
-                    ipStats.downloadThroughput.unit) }} {{
-                      ipStats.downloadThroughput.unit
-                    }}</span>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-slate-200">{{ BytesFixed(ipStats.totalTraffic.value,
-                    ipStats.totalTraffic.unit) }} {{
-                      ipStats.totalTraffic.unit
-                    }}</span>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-orange-400">{{ BytesFixed(ipStats.totalUpload.value,
-                    ipStats.totalUpload.unit) }} {{
-                      ipStats.totalUpload.unit
-                    }}</span>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-cyan-400">{{ BytesFixed(ipStats.totalDownload.value,
-                    ipStats.totalDownload.unit) }} {{
-                      ipStats.totalDownload.unit
-                    }}</span>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-slate-200">{{ ipStats.tcpCount }}</span>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-slate-200">{{ ipStats.udpCount }}</span>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-slate-200">{{ ipStats.otherCount }}</span>
-                </td>
-              </tr>
-              <tr v-if="aggregationData.unknown.ips.length === 0 && !uiState.ipGroupCollapsed.unknown">
-                <td colspan="10" class="px-5 py-4 text-center text-slate-500 text-xs">暂无未知IP数据</td>
-              </tr>
+                  </td>
+                </tr>
+                <!-- 分组详细行 -->
+                <tr v-for="ipStats in group.ips" :key="ipStats.ip" v-show="!uiState.ipGroupCollapsed[group.key]"
+                  class="hover:bg-slate-700/30 transition-colors">
+                  <td class="px-3 py-2 text-center">
+                    <span class="font-mono text-slate-300">{{ ipStats.ip }}</span>
+                  </td>
+                  <td class="px-3 py-2 text-center">
+                    <span class="font-mono text-slate-200">{{
+                      BytesFixed(ipStats.totalThroughput.value, ipStats.totalThroughput.unit) }} {{
+                        ipStats.totalThroughput.unit
+                      }}</span>
+                  </td>
+                  <td class="px-3 py-2 text-center">
+                    <span class="font-mono text-orange-400">{{
+                      BytesFixed(ipStats.uploadThroughput.value, ipStats.uploadThroughput.unit) }} {{
+                        ipStats.uploadThroughput.unit
+                      }}</span>
+                  </td>
+                  <td class="px-3 py-2 text-center">
+                    <span class="font-mono text-cyan-400">{{
+                      BytesFixed(ipStats.downloadThroughput.value, ipStats.downloadThroughput.unit) }} {{
+                        ipStats.downloadThroughput.unit
+                      }}</span>
+                  </td>
+                  <td class="px-3 py-2 text-center">
+                    <span class="font-mono text-slate-200">{{
+                      BytesFixed(ipStats.totalTraffic.value, ipStats.totalTraffic.unit) }} {{
+                        ipStats.totalTraffic.unit
+                      }}</span>
+                  </td>
+                  <td class="px-3 py-2 text-center">
+                    <span class="font-mono text-orange-400">{{
+                      BytesFixed(ipStats.totalUpload.value, ipStats.totalUpload.unit) }} {{
+                        ipStats.totalUpload.unit
+                      }}</span>
+                  </td>
+                  <td class="px-3 py-2 text-center">
+                    <span class="font-mono text-cyan-400">{{
+                      BytesFixed(ipStats.totalDownload.value, ipStats.totalDownload.unit) }} {{
+                        ipStats.totalDownload.unit
+                      }}</span>
+                  </td>
+                  <td class="px-3 py-2 text-center">
+                    <span class="font-mono text-blue-400">{{ ipStats.tcpCount }}</span>
+                  </td>
+                  <td class="px-3 py-2 text-center">
+                    <span class="font-mono text-violet-400">{{ ipStats.udpCount }}</span>
+                  </td>
+                  <td class="px-3 py-2 text-center">
+                    <span class="font-mono text-slate-200">{{ ipStats.otherCount }}</span>
+                  </td>
+                </tr>
+                <!-- 空数据提示 -->
+                <tr v-if="group.ips.length === 0 && !uiState.ipGroupCollapsed[group.key]">
+                  <td colspan="10" class="px-5 py-4 text-center text-slate-500 text-xs">暂无{{ group.name }}数据</td>
+                </tr>
+              </template>
             </tbody>
           </table>
         </div>
@@ -1077,7 +1068,7 @@ const getConnectionSortIcon = (columnId: string): string => {
         <div class="px-4 py-3 border-b border-slate-700 flex justify-end">
           <div class="relative">
             <input v-model="globalFilter" placeholder="全局搜索..."
-              class="bg-slate-900 border border-slate-600 text-white text-xs px-3 py-1.5 pr-8 rounded w-56 outline-none focus:border-blue-500" />
+              class="bg-slate-900 border border-slate-600 text-white text-xs px-3 py-1.5 pr-8 rounded w-56 outline-none focus:border-blue-400" />
             <button v-if="globalFilter" @click="globalFilter = ''"
               class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs w-4 h-4 flex items-center justify-center rounded hover:bg-slate-700 transition-colors"
               title="清空搜索">
@@ -1113,16 +1104,64 @@ const getConnectionSortIcon = (columnId: string): string => {
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-700">
-              <tr v-for="row in table.getRowModel().rows" :key="row.id" class="hover:bg-slate-700/30 transition-colors">
+              <tr v-for="row in table.getPaginationRowModel().rows" :key="row.id"
+                class="hover:bg-slate-700/30 transition-colors">
                 <td v-for="cell in row.getVisibleCells()" :key="cell.id" class="px-3 py-2 text-center">
                   <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
                 </td>
               </tr>
-              <tr v-if="table.getRowModel().rows.length === 0">
+              <tr v-if="table.getPaginationRowModel().rows.length === 0">
                 <td colspan="7" class="px-5 py-8 text-center text-slate-500">暂无匹配数据</td>
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- 分页控件 -->
+        <div class="px-4 py-3 border-t border-slate-700 flex flex-wrap items-center justify-between gap-3">
+          <!-- 左侧：分页大小选择器 -->
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-400">每页显示：</span>
+            <!-- 预设分页大小按钮 -->
+            <button v-for="size in pageSizeOptions" :key="size" @click="switchToPresetSize(size)"
+              class="text-xs px-2 py-1 rounded transition-colors" :class="{
+                'bg-blue-600 text-white': !isCustomPageSize && pageSize === size,
+                'bg-slate-700 text-slate-300 hover:bg-slate-600': isCustomPageSize || pageSize !== size
+              }">
+              {{ size }}
+            </button>
+            <!-- 自定义输入框 -->
+            <div class="flex items-center gap-1">
+              <input v-model="customPageSize" type="number" min="1" placeholder="自定义"
+                class="w-16 text-xs px-2 py-1 rounded bg-slate-900 border border-slate-600 text-white outline-none focus:border-blue-400 text-center"
+                :class="{ 'border-blue-400': isCustomPageSize }" @change="handleCustomPageSizeChange"
+                @keyup.enter="handleCustomPageSizeChange" />
+              <span class="text-xs text-slate-400">条</span>
+            </div>
+          </div>
+
+          <!-- 右侧：页码导航 -->
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-slate-400">
+              共 {{ table.getPageCount() }} 页，{{ table.getFilteredRowModel().rows.length }} 条记录
+            </span>
+            <div class="flex items-center gap-1">
+              <button @click="table.previousPage()" :disabled="!table.getCanPreviousPage()"
+                class="text-xs px-3 py-1 rounded bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                上一页
+              </button>
+              <div class="flex items-center gap-1 px-2">
+                <input v-model="pageInputValue" type="number" min="1" :max="table.getPageCount() || 1"
+                  class="w-15 text-xs px-2 py-1 rounded bg-slate-900 border border-slate-600 text-white outline-none focus:border-blue-400 text-left"
+                  @change="jumpToPage" @keyup.enter="jumpToPage" />
+                <span class="text-xs text-slate-400">/ {{ table.getPageCount() || 1 }}</span>
+              </div>
+              <button @click="table.nextPage()" :disabled="!table.getCanNextPage()"
+                class="text-xs px-3 py-1 rounded bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                下一页
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

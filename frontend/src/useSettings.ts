@@ -9,6 +9,7 @@ export interface Settings {
   refresh_interval: number;
   active_tab: TabType;
   chart_time_range: number;
+  network_table_page_size: number;
 }
 
 export const defaultSettings: Settings = {
@@ -16,7 +17,8 @@ export const defaultSettings: Settings = {
   retention_days: 7,
   refresh_interval: 2000,
   active_tab: 'system',
-  chart_time_range: 60 * 1000
+  chart_time_range: 60 * 1000,
+  network_table_page_size: 20
 };
 
 const settings = reactive<Settings>({ ...defaultSettings });
