@@ -694,8 +694,9 @@ const handlePageSizeChange = async (value: string) => {
   if (!isNaN(newSize) && newSize > 0) {
     pageSize.value = newSize;
     // 切换分页大小时保持当前页码，但确保页码有效
-    const totalPages = Math.ceil(table.getFilteredRowModel().rows.length / newSize);
-    const newPageIndex = Math.min(desiredPageIndex.value, totalPages - 1);
+    const totalRows = table.getFilteredRowModel().rows.length;
+    const totalPages = Math.ceil(totalRows / newSize);
+    const newPageIndex = totalPages > 0 ? Math.min(desiredPageIndex.value, totalPages - 1) : 0;
     desiredPageIndex.value = newPageIndex;
     currentPage.value = newPageIndex;
     pagination.value = {
@@ -712,8 +713,9 @@ const handleCustomPageSizeChange = async () => {
   if (!isNaN(value) && value > 0) {
     pageSize.value = value;
     // 切换分页大小时保持当前页码，但确保页码有效
-    const totalPages = Math.ceil(table.getFilteredRowModel().rows.length / value);
-    const newPageIndex = Math.min(desiredPageIndex.value, totalPages - 1);
+    const totalRows = table.getFilteredRowModel().rows.length;
+    const totalPages = Math.ceil(totalRows / value);
+    const newPageIndex = totalPages > 0 ? Math.min(desiredPageIndex.value, totalPages - 1) : 0;
     desiredPageIndex.value = newPageIndex;
     currentPage.value = newPageIndex;
     pagination.value = {
@@ -730,8 +732,9 @@ const switchToPresetSize = async (size: number) => {
   isCustomPageSize.value = false;
   customPageSize.value = '';
   // 切换分页大小时保持当前页码，但确保页码有效
-  const totalPages = Math.ceil(table.getFilteredRowModel().rows.length / size);
-  const newPageIndex = Math.min(desiredPageIndex.value, totalPages - 1);
+  const totalRows = table.getFilteredRowModel().rows.length;
+  const totalPages = Math.ceil(totalRows / size);
+  const newPageIndex = totalPages > 0 ? Math.min(desiredPageIndex.value, totalPages - 1) : 0;
   desiredPageIndex.value = newPageIndex;
   currentPage.value = newPageIndex;
   pagination.value = {
