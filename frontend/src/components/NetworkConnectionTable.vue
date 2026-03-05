@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, h, watch, reactive, onMounted } from 'vue';
+import { ref, computed, h, watch, reactive, onMounted, nextTick } from 'vue';
 import {
   useVueTable,
   getCoreRowModel,
@@ -627,8 +627,22 @@ const customPageSize = ref(isCustomPageSize.value ? String(pageSize.value) : '')
 // 当前页码（从0开始）
 const currentPage = ref(0);
 
+// 用户期望的页码（用于数据刷新时保持页码）
+const desiredPageIndex = ref(0);
+
 // 页码输入框的值
 const pageInputValue = ref('1');
+
+function getDesiredPageIndex() {
+  return desiredPageIndex.value;
+}
+function getCurrentPage() {
+  return currentPage.value;
+}
+function getPageInputValue() {
+  return pageInputValue.value;
+}
+
 
 // 跳转到指定页
 const jumpToPage = () => {
@@ -645,6 +659,7 @@ const jumpToPage = () => {
   const validPage = Math.min(Math.max(targetPage, 1), totalPages);
   const newIndex = validPage - 1;
 
+  desiredPageIndex.value = newIndex;
   pagination.value = {
     ...pagination.value,
     pageIndex: newIndex,
@@ -676,7 +691,8 @@ const handlePageSizeChange = async (value: string) => {
     pageSize.value = newSize;
     // 切换分页大小时保持当前页码，但确保页码有效
     const totalPages = Math.ceil(table.getFilteredRowModel().rows.length / newSize);
-    const newPageIndex = Math.min(currentPage.value, totalPages - 1);
+    const newPageIndex = Math.min(desiredPageIndex.value, totalPages - 1);
+    desiredPageIndex.value = newPageIndex;
     currentPage.value = newPageIndex;
     pagination.value = {
       pageSize: newSize,
@@ -693,7 +709,8 @@ const handleCustomPageSizeChange = async () => {
     pageSize.value = value;
     // 切换分页大小时保持当前页码，但确保页码有效
     const totalPages = Math.ceil(table.getFilteredRowModel().rows.length / value);
-    const newPageIndex = Math.min(currentPage.value, totalPages - 1);
+    const newPageIndex = Math.min(desiredPageIndex.value, totalPages - 1);
+    desiredPageIndex.value = newPageIndex;
     currentPage.value = newPageIndex;
     pagination.value = {
       pageSize: value,
@@ -710,7 +727,8 @@ const switchToPresetSize = async (size: number) => {
   customPageSize.value = '';
   // 切换分页大小时保持当前页码，但确保页码有效
   const totalPages = Math.ceil(table.getFilteredRowModel().rows.length / size);
-  const newPageIndex = Math.min(currentPage.value, totalPages - 1);
+  const newPageIndex = Math.min(desiredPageIndex.value, totalPages - 1);
+  desiredPageIndex.value = newPageIndex;
   currentPage.value = newPageIndex;
   pagination.value = {
     pageSize: size,
@@ -725,17 +743,24 @@ const pagination = ref({
   pageIndex: currentPage.value,
 });
 
-// 监听数据变化，保持页码有效
-watch(displayData, (newData) => {
-  const totalPages = Math.ceil(newData.length / pagination.value.pageSize);
-  if (totalPages > 0 && pagination.value.pageIndex >= totalPages) {
-    // 当前页码超过最大页数，跳到最后一页
-    pagination.value = {
-      ...pagination.value,
-      pageIndex: totalPages - 1,
-    };
-    currentPage.value = totalPages - 1;
-  }
+// 监听数据变化，仅处理页码越界的情况
+watch(displayData, () => {
+  // 使用 nextTick 确保 TanStack Table 已经处理了数据变化
+  nextTick(() => {
+    const totalPages = Math.max(1, table.getPageCount());
+    const currentIndex = pagination.value.pageIndex;
+
+    // 如果当前页码超过最大页数，跳到最后一页
+    if (currentIndex >= totalPages) {
+      const newIndex = totalPages - 1;
+      desiredPageIndex.value = newIndex;
+      pagination.value = {
+        ...pagination.value,
+        pageIndex: newIndex,
+      };
+      currentPage.value = newIndex;
+    }
+  });
 }, { immediate: true });
 
 // 初始状态 - 只允许同时排列一行
@@ -749,6 +774,7 @@ const table = useVueTable({
   getFilteredRowModel: getFilteredRowModel(),
   getPaginationRowModel: getPaginationRowModel(),
   enableMultiSort: false, // 只允许同时排列一行
+  autoResetPageIndex: false, // 禁用数据变化时自动重置到第一页
   getRowId: (row, index, parent) => {
     // 为每个连接创建一个标准化的唯一ID
     const endpointA = `${row.source_ip}:${row.source_port}`;
@@ -776,6 +802,7 @@ const table = useVueTable({
     const newPagination = typeof updater === 'function'
       ? updater(pagination.value)
       : updater;
+    desiredPageIndex.value = newPagination.pageIndex;
     pagination.value = newPagination;
     currentPage.value = newPagination.pageIndex;
   },
@@ -1127,7 +1154,7 @@ const getConnectionSortIcon = (columnId: string): string => {
               </button>
               <div class="flex items-center gap-1 px-2">
                 <input v-model="pageInputValue" type="number" min="1" :max="table.getPageCount() || 1"
-                  class="w-12 text-xs px-2 py-1 rounded bg-slate-900 border border-slate-600 text-white outline-none focus:border-blue-500 text-center"
+                  class="w-15 text-xs px-2 py-1 rounded bg-slate-900 border border-slate-600 text-white outline-none focus:border-blue-500 text-left"
                   @change="jumpToPage" @keyup.enter="jumpToPage" />
                 <span class="text-xs text-slate-400">/ {{ table.getPageCount() || 1 }}</span>
               </div>
