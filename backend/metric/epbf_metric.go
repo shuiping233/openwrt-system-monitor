@@ -81,7 +81,7 @@ func (svc *EbpfNetTrafficService) InitEbpfInterfaceDevice(targetInterface string
 	if err := attachTCObjects(link, objs.CountFlow.FD()); err != nil {
 		log.Fatalf("Attach network interface %q failed: %s", targetInterface, err)
 	}
-	fmt.Printf("Capture traffic from interface %q now\n", targetInterface)
+	log.Printf("Capture traffic from interface %q now\n", targetInterface)
 	startCapture(&objs)
 	svc.link = link
 	svc.objs = &objs
@@ -162,7 +162,6 @@ func (svc *EbpfNetTrafficService) Run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			svc.Close()
 			return
 
 		case <-svc.activeChan:
@@ -194,7 +193,7 @@ func (svc *EbpfNetTrafficService) ActiveSignal() {
 }
 
 func (svc *EbpfNetTrafficService) Close() {
-	fmt.Println("\nCleaning ebpf resources...")
+	log.Println("Cleaning ebpf resources...")
 	stopCapture(svc.objs)
 	cleanUpTC(svc.link)
 	svc.objs.Close()
@@ -410,10 +409,10 @@ func drawUI(metrics map[uint32]*IPMetrics) {
 	fmt.Printf("\033[H\033[2J") // 清屏
 	fmt.Printf("【 局域网流量统计 (eBPF) 】- %s\n", time.Now().Format("15:04:05"))
 	fmt.Printf("%-18s | %-12s | %-12s | %-12s\n", "内网 IP 地址", "上传(KB/s)", "下载(KB/s)", "累计总流量")
-	fmt.Println(strings.Repeat("-", 65))
+	log.Println(strings.Repeat("-", 65))
 
 	if len(keys) == 0 {
-		fmt.Println("  等待流量...")
+		log.Println("  等待流量...")
 		return
 	}
 

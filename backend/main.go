@@ -124,12 +124,7 @@ func PrettyExit(httpServer *http.Server) {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	<-sigChan
-	if err := httpServer.Shutdown(context.Background()); err != nil {
-		log.Printf("HTTP server close failed : %v", err)
-	}
-	log.Println("receive exit signal , closing service...")
-	background.Close()
-	os.Exit(0)
+
 }
 
 func main() {
@@ -151,8 +146,6 @@ func main() {
 		Handler: http.DefaultServeMux, // 你的 HandleFunc 都注册在这里
 	}
 
-	go PrettyExit(httpServer)
-
 	log.Println("print input config : ")
 	log.Printf("host : %s", *host)
 	log.Printf("port : %d", *port)
@@ -173,14 +166,24 @@ func main() {
 	background.UpdateStaticMetric()
 	background.UpdateNetworkConnectionDetails()
 
+	canExit := make(chan struct{})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-sig
-		fmt.Println("\n Receive ctrl+c signal , closing service...")
+		log.Println("Receive ctrl+c signal , closing service...")
+
 		cancel()
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
+			log.Printf("HTTP Server releasing failed: %v", err)
+		}
+		background.Close()
+		close(canExit)
 	}()
 
 	go background.RunDynamicMetricService(ctx)
@@ -205,4 +208,5 @@ func main() {
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("listen error: %s\n", err)
 	}
+	<-canExit
 }
