@@ -371,7 +371,7 @@ const copyInfo = (row: any) => {
     destination_ip = `[${compressIPv6(row.destination_ip)}]`;
   }
 
-  const text = `[${row.ip_family}] ${row.protocol} ${source_ip}:${row.source_port} -> ${destination_ip}:${row.destination_port} | 状态: ${row.state || '-'} | 流量: ${row.traffic.value.toFixed(2)} ${row.traffic.unit} (${row.packets} Pkgs)`;
+  const text = `[${row.ip_family}] ${row.protocol} ${source_ip}:${row.source_port} -> ${destination_ip}:${row.destination_port} | 状态: ${row.state || '-'} | 流量: ${BytesFixed(row.traffic.value, row.traffic.unit)} ${row.traffic.unit} (${row.packets} Pkgs)`;
 
   // 检查浏览器是否支持 Clipboard API
   if (navigator.clipboard && window.isSecureContext) {
