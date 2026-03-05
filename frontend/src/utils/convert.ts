@@ -50,8 +50,8 @@ export function normalizeToBytes(value: number, unit: string): number {
   const idx = list.indexOf(u);
   if (idx === -1) return value; // 未知单位，原样返回
 
-  // 1000 的 idx 次方
-  const scale = Math.pow(1000, idx);
+  // 1024 的 idx 次方
+  const scale = Math.pow(1024, idx);
   return value * scale;
 }
 
@@ -62,11 +62,11 @@ export function formatIOBytes(bytes: number, idx = 0): string {
   }
   if (idx >= RATE_UNITS.length - 1) {
     // 已最大单位
-    return `${(bytes / Math.pow(1000, idx)).toFixed(2)} ${RATE_UNITS[idx]}`;
+    return `${(bytes / Math.pow(1024, idx)).toFixed(2)} ${RATE_UNITS[idx]}`;
   }
-  if (bytes < Math.pow(1000, idx + 1)) {
+  if (bytes < Math.pow(1024, idx + 1)) {
     // 适合当前单位
-    return `${(bytes / Math.pow(1000, idx)).toFixed(2)} ${RATE_UNITS[idx]}`;
+    return `${(bytes / Math.pow(1024, idx)).toFixed(2)} ${RATE_UNITS[idx]}`;
   }
   return formatIOBytes(bytes, idx + 1); // 继续往大单位走
 }
@@ -93,11 +93,11 @@ export function covertDataBytes(bytes: number, unit: string, target: string): [n
   const diff = idx - targetIdx;
   if (diff < 0) {
     // 往小单位走
-    bytes = bytes / Math.pow(1000, -diff);
+    bytes = bytes / Math.pow(1024, -diff);
   }
   if (diff > 0) {
     // 往大单位走
-    bytes = bytes * Math.pow(1000, diff);
+    bytes = bytes * Math.pow(1024, diff);
   }
   return [bytes, DATA_UNITS[targetIdx]];
 }

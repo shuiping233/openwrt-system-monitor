@@ -25,7 +25,7 @@ func ConvertBytes(bytes float64, unit string) (float64, string) {
 	if unitListIndex < 0 {
 		return bytes, unit
 	}
-	newBytes := bytes / 1000
+	newBytes := bytes / 1024
 	if newBytes < 1 {
 		return bytes, unit
 	}
