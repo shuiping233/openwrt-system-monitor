@@ -19,7 +19,7 @@ jobs:
 
       - name: Install LLVM and Clang
         run: |
-          sudo  update
+          sudo apt update
           sudo apt install -g clang llvm gcc-multilib build-essential
           sudo apt install libbpf-dev libelf-dev
           sudo apt install linux-headers-$(uname -r)
