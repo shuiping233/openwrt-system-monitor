@@ -627,6 +627,37 @@ const customPageSize = ref(isCustomPageSize.value ? String(pageSize.value) : '')
 // 当前页码（从0开始）
 const currentPage = ref(0);
 
+// 页码输入框的值
+const pageInputValue = ref('1');
+
+// 跳转到指定页
+const jumpToPage = () => {
+  const targetPage = parseInt(pageInputValue.value, 10);
+  if (isNaN(targetPage) || targetPage < 1) {
+    // 无效输入，重置为当前页
+    pageInputValue.value = String(currentPage.value + 1);
+    return;
+  }
+  const totalPages = table.getPageCount();
+  if (totalPages === 0) return;
+
+  // 限制在有效范围内
+  const validPage = Math.min(Math.max(targetPage, 1), totalPages);
+  const newIndex = validPage - 1;
+
+  pagination.value = {
+    ...pagination.value,
+    pageIndex: newIndex,
+  };
+  currentPage.value = newIndex;
+  pageInputValue.value = String(validPage);
+};
+
+// 同步页码输入框与当前页
+watch(currentPage, (newPage) => {
+  pageInputValue.value = String(newPage + 1);
+}, { immediate: true });
+
 // 当配置加载完成后，同步分页大小
 watch(() => settings.network_table_page_size, (newValue) => {
   if (newValue && newValue !== pageSize.value) {
@@ -643,7 +674,14 @@ const handlePageSizeChange = async (value: string) => {
   const newSize = parseInt(value, 10);
   if (!isNaN(newSize) && newSize > 0) {
     pageSize.value = newSize;
-    currentPage.value = 0; // 重置到第一页
+    // 切换分页大小时保持当前页码，但确保页码有效
+    const totalPages = Math.ceil(table.getFilteredRowModel().rows.length / newSize);
+    const newPageIndex = Math.min(currentPage.value, totalPages - 1);
+    currentPage.value = newPageIndex;
+    pagination.value = {
+      pageSize: newSize,
+      pageIndex: newPageIndex,
+    };
     await setConfig('network_table_page_size', newSize);
   }
 };
@@ -653,7 +691,14 @@ const handleCustomPageSizeChange = async () => {
   const value = parseInt(customPageSize.value, 10);
   if (!isNaN(value) && value > 0) {
     pageSize.value = value;
-    currentPage.value = 0;
+    // 切换分页大小时保持当前页码，但确保页码有效
+    const totalPages = Math.ceil(table.getFilteredRowModel().rows.length / value);
+    const newPageIndex = Math.min(currentPage.value, totalPages - 1);
+    currentPage.value = newPageIndex;
+    pagination.value = {
+      pageSize: value,
+      pageIndex: newPageIndex,
+    };
     await setConfig('network_table_page_size', value);
   }
 };
@@ -663,15 +708,35 @@ const switchToPresetSize = async (size: number) => {
   pageSize.value = size;
   isCustomPageSize.value = false;
   customPageSize.value = '';
-  currentPage.value = 0;
+  // 切换分页大小时保持当前页码，但确保页码有效
+  const totalPages = Math.ceil(table.getFilteredRowModel().rows.length / size);
+  const newPageIndex = Math.min(currentPage.value, totalPages - 1);
+  currentPage.value = newPageIndex;
+  pagination.value = {
+    pageSize: size,
+    pageIndex: newPageIndex,
+  };
   await setConfig('network_table_page_size', size);
 };
 
 // 受控分页状态
 const pagination = ref({
   pageSize: pageSize.value,
-  pageIndex: 0,
+  pageIndex: currentPage.value,
 });
+
+// 监听数据变化，保持页码有效
+watch(displayData, (newData) => {
+  const totalPages = Math.ceil(newData.length / pagination.value.pageSize);
+  if (totalPages > 0 && pagination.value.pageIndex >= totalPages) {
+    // 当前页码超过最大页数，跳到最后一页
+    pagination.value = {
+      ...pagination.value,
+      pageIndex: totalPages - 1,
+    };
+    currentPage.value = totalPages - 1;
+  }
+}, { immediate: true });
 
 // 初始状态 - 只允许同时排列一行
 const initialSorting = [{ id: 'traffic', desc: true }] as SortingState;
@@ -714,15 +779,6 @@ const table = useVueTable({
     pagination.value = newPagination;
     currentPage.value = newPagination.pageIndex;
   },
-});
-
-// 同步分页大小到 table
-watch(pageSize, (newSize) => {
-  pagination.value = {
-    ...pagination.value,
-    pageSize: newSize,
-    pageIndex: 0,
-  };
 });
 
 // 获取排序状态的显示
@@ -1069,9 +1125,12 @@ const getConnectionSortIcon = (columnId: string): string => {
                 class="text-xs px-3 py-1 rounded bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                 上一页
               </button>
-              <span class="text-xs px-3 py-1 text-slate-200">
-                {{ currentPage + 1 }} / {{ table.getPageCount() || 1 }}
-              </span>
+              <div class="flex items-center gap-1 px-2">
+                <input v-model="pageInputValue" type="number" min="1" :max="table.getPageCount() || 1"
+                  class="w-12 text-xs px-2 py-1 rounded bg-slate-900 border border-slate-600 text-white outline-none focus:border-blue-500 text-center"
+                  @change="jumpToPage" @keyup.enter="jumpToPage" />
+                <span class="text-xs text-slate-400">/ {{ table.getPageCount() || 1 }}</span>
+              </div>
               <button @click="table.nextPage()" :disabled="!table.getCanNextPage()"
                 class="text-xs px-3 py-1 rounded bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                 下一页
