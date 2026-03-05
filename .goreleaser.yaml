@@ -4,6 +4,7 @@ project_name: diskio
 
 before:
   hooks:
+    - go install github.com/cilium/ebpf/cmd/bpf2go@latest
     - go generate ./...
     - go mod tidy
     - scripts/build-frontend.sh
