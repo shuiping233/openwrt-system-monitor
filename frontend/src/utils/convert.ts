@@ -71,6 +71,22 @@ export function formatIOBytes(bytes: number, idx = 0): string {
   return formatIOBytes(bytes, idx + 1); // 继续往大单位走
 }
 
+// 3. 格式化 ← Bytes（递归版，固定输出 DataUnit）
+export function formatDataBytes(bytes: number, idx = 0): string {
+  if (bytes === 0) {
+    return `0 ${DATA_UNITS[0]}`;
+  }
+  if (idx >= DATA_UNITS.length - 1) {
+    // 已最大单位
+    return `${(bytes / Math.pow(1024, idx)).toFixed(2)} ${DATA_UNITS[idx]}`;
+  }
+  if (bytes < Math.pow(1024, idx + 1)) {
+    // 适合当前单位
+    return `${(bytes / Math.pow(1024, idx)).toFixed(2)} ${DATA_UNITS[idx]}`;
+  }
+  return formatDataBytes(bytes, idx + 1); // 继续往大单位走
+}
+
 // 转换DATA_UNITS单位位目标单位
 export function covertDataBytes(bytes: number, unit: string, target: string): [number, string] {
   if (bytes === 0) {

@@ -12,7 +12,7 @@ import {
 } from '@tanstack/vue-table';
 import type { ConnectionApiResponse, AggregationTrafficResponse, AggregationTrafficDetails, IpAddressType } from '../model';
 import { compressIPv6 } from '../utils/ipv6';
-import { convertToBytes, BytesFixed, formatIOBytes, normalizeToBytes } from '../utils/convert';
+import { convertToBytes, BytesFixed, formatIOBytes, normalizeToBytes, formatDataBytes } from '../utils/convert';
 import { useToast } from '../useToast';
 import { useDatabase } from '../useDatabase';
 
@@ -356,9 +356,15 @@ const formatIP = (ip: string | undefined, family: string | undefined): string =>
 };
 
 // 格式化流量显示
-const formatTraffic = (bytes: number): string => {
+const formatThroughput = (bytes: number): string => {
   if (bytes === 0) return '0 B';
   return formatIOBytes(bytes);
+};
+
+// 格式化流量显示
+const formatTraffic = (bytes: number): string => {
+  if (bytes === 0) return '0 B';
+  return formatDataBytes(bytes);
 };
 
 // 复制功能
@@ -790,11 +796,11 @@ const getConnectionSortIcon = (columnId: string): string => {
                     </div>
                     <div class="flex items-center gap-4 text-xs">
                       <span class="text-slate-400">总实时速率: <span class="text-slate-200 font-mono">{{
-                        formatTraffic(aggregationData.lan.totalThroughput) }}</span></span>
+                        formatThroughput(aggregationData.lan.totalThroughput) }}</span></span>
                       <span class="text-slate-400">上行速率: <span class="text-orange-400 font-mono">{{
-                        formatTraffic(aggregationData.lan.UploadThroughput) }}</span></span>
+                        formatThroughput(aggregationData.lan.UploadThroughput) }}</span></span>
                       <span class="text-slate-400">下行速率: <span class="text-cyan-400 font-mono">{{
-                        formatTraffic(aggregationData.lan.DownloadThroughput) }}</span></span>
+                        formatThroughput(aggregationData.lan.DownloadThroughput) }}</span></span>
                       <span class="text-slate-400">累计上下行流量: <span class="text-slate-200 font-mono">{{
                         formatTraffic(aggregationData.lan.totalTraffic) }}</span></span>
                       <span class="text-slate-400">累计上行流量: <span class="text-orange-400 font-mono">{{
@@ -880,11 +886,11 @@ const getConnectionSortIcon = (columnId: string): string => {
                     </div>
                     <div class="flex items-center gap-4 text-xs">
                       <span class="text-slate-400">总实时速率: <span class="text-slate-200 font-mono">{{
-                        formatTraffic(aggregationData.wan.totalThroughput) }}</span></span>
+                        formatThroughput(aggregationData.wan.totalThroughput) }}</span></span>
                       <span class="text-slate-400">上行速率: <span class="text-orange-400 font-mono">{{
-                        formatTraffic(aggregationData.wan.UploadThroughput) }}</span></span>
+                        formatThroughput(aggregationData.wan.UploadThroughput) }}</span></span>
                       <span class="text-slate-400">下行速率: <span class="text-cyan-400 font-mono">{{
-                        formatTraffic(aggregationData.wan.DownloadThroughput) }}</span></span>
+                        formatThroughput(aggregationData.wan.DownloadThroughput) }}</span></span>
                       <span class="text-slate-400">累计上下行流量: <span class="text-slate-200 font-mono">{{
                         formatTraffic(aggregationData.wan.totalTraffic) }}</span></span>
                       <span class="text-slate-400">累计上行流量: <span class="text-orange-400 font-mono">{{
@@ -970,11 +976,11 @@ const getConnectionSortIcon = (columnId: string): string => {
                     </div>
                     <div class="flex items-center gap-4 text-xs">
                       <span class="text-slate-400">总实时速率: <span class="text-slate-200 font-mono">{{
-                        formatTraffic(aggregationData.unknown.totalThroughput) }}</span></span>
+                        formatThroughput(aggregationData.unknown.totalThroughput) }}</span></span>
                       <span class="text-slate-400">上行速率: <span class="text-orange-400 font-mono">{{
-                        formatTraffic(aggregationData.unknown.UploadThroughput) }}</span></span>
+                        formatThroughput(aggregationData.unknown.UploadThroughput) }}</span></span>
                       <span class="text-slate-400">下行速率: <span class="text-cyan-400 font-mono">{{
-                        formatTraffic(aggregationData.unknown.DownloadThroughput) }}</span></span>
+                        formatThroughput(aggregationData.unknown.DownloadThroughput) }}</span></span>
                       <span class="text-slate-400">累计上下行流量: <span class="text-slate-200 font-mono">{{
                         formatTraffic(aggregationData.unknown.totalTraffic) }}</span></span>
                       <span class="text-slate-400">累计上行流量: <span class="text-orange-400 font-mono">{{
