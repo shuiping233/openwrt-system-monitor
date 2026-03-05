@@ -254,10 +254,6 @@ const toggleIpGroup = async (group: IpAddressType) => {
 const globalFilter = ref('');
 const aggregationFilter = ref(''); // 聚合统计的搜索词
 
-watch(globalFilter, (newFilter) => {
-  table.setGlobalFilter(newFilter);
-});
-
 // ================= 3. 聚合统计排序状态 =================
 type SortDirection = 'asc' | 'desc' | null;
 type SortColumn = 'ip' | 'totalThroughput' | 'uploadThroughput' | 'downloadThroughput' | 'totalTraffic' | 'totalUpload' | 'totalDownload' | 'tcp' | 'udp' | 'other';
@@ -407,18 +403,52 @@ const sortIPStats = (ips: IPStats[], column: SortColumn, direction: SortDirectio
 // 过滤函数
 const filterIPStats = (ips: IPStats[], filter: string): IPStats[] => {
   if (!filter.trim()) return ips;
-  const lowerFilter = filter.toLowerCase();
+  const lowerFilter = filter.toLowerCase().replace(/\s+/g, '');
   return ips.filter(ip => {
-    return ip.ip.toLowerCase().includes(lowerFilter) ||
-      String(ip.totalThroughput.value).includes(lowerFilter) ||
-      ip.totalThroughput.unit.toLowerCase().includes(lowerFilter) ||
-      String(ip.uploadThroughput.value).includes(lowerFilter) ||
-      ip.uploadThroughput.unit.toLowerCase().includes(lowerFilter) ||
-      String(ip.downloadThroughput.value).includes(lowerFilter) ||
-      ip.downloadThroughput.unit.toLowerCase().includes(lowerFilter) ||
-      String(ip.tcpCount).includes(lowerFilter) ||
-      String(ip.udpCount).includes(lowerFilter) ||
-      String(ip.otherCount).includes(lowerFilter);
+    // 检查 IP 地址
+    if (ip.ip.toLowerCase().includes(lowerFilter)) return true;
+    
+    // 检查 hostname（如果启用了 DNS）
+    const hostname = dnsCache.value.get(ip.ip);
+    if (hostname && hostname.toLowerCase().includes(lowerFilter)) return true;
+    
+    // 检查格式化后的流量值（数值+单位）
+    const totalThroughputStr = BytesFixed(ip.totalThroughput.value, ip.totalThroughput.unit) + ip.totalThroughput.unit;
+    const uploadThroughputStr = BytesFixed(ip.uploadThroughput.value, ip.uploadThroughput.unit) + ip.uploadThroughput.unit;
+    const downloadThroughputStr = BytesFixed(ip.downloadThroughput.value, ip.downloadThroughput.unit) + ip.downloadThroughput.unit;
+    const totalTrafficStr = BytesFixed(ip.totalTraffic.value, ip.totalTraffic.unit) + ip.totalTraffic.unit;
+    const totalUploadStr = BytesFixed(ip.totalUpload.value, ip.totalUpload.unit) + ip.totalUpload.unit;
+    const totalDownloadStr = BytesFixed(ip.totalDownload.value, ip.totalDownload.unit) + ip.totalDownload.unit;
+    
+    if (totalThroughputStr.toLowerCase().replace(/\s+/g, '').includes(lowerFilter)) return true;
+    if (uploadThroughputStr.toLowerCase().replace(/\s+/g, '').includes(lowerFilter)) return true;
+    if (downloadThroughputStr.toLowerCase().replace(/\s+/g, '').includes(lowerFilter)) return true;
+    if (totalTrafficStr.toLowerCase().replace(/\s+/g, '').includes(lowerFilter)) return true;
+    if (totalUploadStr.toLowerCase().replace(/\s+/g, '').includes(lowerFilter)) return true;
+    if (totalDownloadStr.toLowerCase().replace(/\s+/g, '').includes(lowerFilter)) return true;
+    
+    // 检查原始数值
+    if (String(ip.totalThroughput.value).includes(lowerFilter)) return true;
+    if (String(ip.uploadThroughput.value).includes(lowerFilter)) return true;
+    if (String(ip.downloadThroughput.value).includes(lowerFilter)) return true;
+    if (String(ip.totalTraffic.value).includes(lowerFilter)) return true;
+    if (String(ip.totalUpload.value).includes(lowerFilter)) return true;
+    if (String(ip.totalDownload.value).includes(lowerFilter)) return true;
+    
+    // 检查单位
+    if (ip.totalThroughput.unit.toLowerCase().includes(lowerFilter)) return true;
+    if (ip.uploadThroughput.unit.toLowerCase().includes(lowerFilter)) return true;
+    if (ip.downloadThroughput.unit.toLowerCase().includes(lowerFilter)) return true;
+    if (ip.totalTraffic.unit.toLowerCase().includes(lowerFilter)) return true;
+    if (ip.totalUpload.unit.toLowerCase().includes(lowerFilter)) return true;
+    if (ip.totalDownload.unit.toLowerCase().includes(lowerFilter)) return true;
+    
+    // 检查连接数
+    if (String(ip.tcpCount).includes(lowerFilter)) return true;
+    if (String(ip.udpCount).includes(lowerFilter)) return true;
+    if (String(ip.otherCount).includes(lowerFilter)) return true;
+    
+    return false;
   });
 };
 
@@ -938,6 +968,9 @@ watch(displayData, () => {
 // 初始状态 - 只允许同时排列一行
 const initialSorting = [{ id: 'traffic', desc: true }] as SortingState;
 
+// 列过滤器状态
+const columnFilters = ref<ColumnFiltersState>([]);
+
 const table = useVueTable({
   data: displayData,
   columns,
@@ -961,9 +994,13 @@ const table = useVueTable({
     get pagination() {
       return pagination.value;
     },
+    get columnFilters() {
+      return columnFilters.value;
+    },
+    get globalFilter() {
+      return globalFilter.value;
+    },
     sorting: initialSorting,
-    columnFilters: [],
-    globalFilter: globalFilter.value,
   },
   globalFilterFn: (row, columnId, value) => {
     const search = String(value).toLowerCase();
@@ -977,6 +1014,18 @@ const table = useVueTable({
     desiredPageIndex.value = newPagination.pageIndex;
     pagination.value = newPagination;
     currentPage.value = newPagination.pageIndex;
+  },
+  onColumnFiltersChange: (updater) => {
+    const newFilters = typeof updater === 'function'
+      ? updater(columnFilters.value)
+      : updater;
+    columnFilters.value = newFilters;
+  },
+  onGlobalFilterChange: (updater) => {
+    const newFilter = typeof updater === 'function'
+      ? updater(globalFilter.value)
+      : updater;
+    globalFilter.value = newFilter;
   },
 });
 
