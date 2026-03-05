@@ -203,6 +203,8 @@ func main() {
 	log.Printf("staticMetricInterval : %v", *staticMetricInterval)
 	log.Printf("trafficCaptureInterfaceName : %v", *trafficCaptureInterfaceName)
 	log.Printf("trafficKeyExpiredTime : %v", *trafficKeyExpiredTime)
+	log.Printf("dnsServerIp : %v", *dnsServerIp)
+	log.Printf("dnsQueryTimeout : %v", *dnsQueryTimeout)
 
 	background.SetConfig(
 		*staticMetricInterval,

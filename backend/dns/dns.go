@@ -25,7 +25,7 @@ func NewDnsQueryService(dnsIp string, queryTimeout time.Duration) *DnsQueryServi
 			d := net.Dialer{
 				Timeout: queryTimeout,
 			}
-			return d.DialContext(ctx, "udp", dnsIp+":53")
+			return d.DialContext(ctx, "udp", net.JoinHostPort(dnsIp, "53"))
 		},
 	}
 	return &DnsQueryService{
