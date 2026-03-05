@@ -972,9 +972,9 @@ const getConnectionSortIcon = (columnId: string): string => {
                           formatTraffic(group.totalUpload) }}</span></span>
                         <span class="text-slate-400">累计下行流量: <span class="text-cyan-400 font-mono">{{
                           formatTraffic(group.totalDownload) }}</span></span>
-                        <span class="text-slate-400">TCP: <span class="text-slate-200 font-mono">{{
+                        <span class="text-slate-400">TCP: <span class="text-blue-500 font-mono">{{
                           group.totalTcp }}</span></span>
-                        <span class="text-slate-400">UDP: <span class="text-slate-200 font-mono">{{
+                        <span class="text-slate-400">UDP: <span class="text-violet-500 font-mono">{{
                           group.totalUdp }}</span></span>
                         <span class="text-slate-400">其他: <span class="text-slate-200 font-mono">{{
                           group.totalOther }}</span></span>
@@ -1025,10 +1025,10 @@ const getConnectionSortIcon = (columnId: string): string => {
                       }}</span>
                   </td>
                   <td class="px-3 py-2 text-center">
-                    <span class="font-mono text-slate-200">{{ ipStats.tcpCount }}</span>
+                    <span class="font-mono text-blue-500">{{ ipStats.tcpCount }}</span>
                   </td>
                   <td class="px-3 py-2 text-center">
-                    <span class="font-mono text-slate-200">{{ ipStats.udpCount }}</span>
+                    <span class="font-mono text-violet-500">{{ ipStats.udpCount }}</span>
                   </td>
                   <td class="px-3 py-2 text-center">
                     <span class="font-mono text-slate-200">{{ ipStats.otherCount }}</span>
