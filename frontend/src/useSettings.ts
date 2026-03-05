@@ -28,7 +28,7 @@ export const defaultSettings: Settings = {
   enable_dns_query_connections: false,
   dns_cache_ttl: 5, // minutes
   dns_batch_size: 50,
-  dns_poll_interval: 10 // seconds
+  dns_poll_interval: 3 // seconds
 };
 
 const settings = reactive<Settings>({ ...defaultSettings });
