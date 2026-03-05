@@ -41,7 +41,7 @@
     ```bash
     sudo apt update
     # 基础编译工具
-    sudo apt install -g clang llvm gcc-multilib build-essential
+    sudo apt install clang llvm gcc-multilib build-essential
     # eBPF 相关开发库
     sudo apt install libbpf-dev libelf-dev
     # 重要：安装内核头文件 (bpf2go 编译时需要引用)
