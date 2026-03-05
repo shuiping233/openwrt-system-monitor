@@ -229,6 +229,7 @@ type StaticSystemMetric struct {
 }
 
 type AggregationTrafficMetric struct {
+	CaptureStartAt   time.Time                   `json:"capture_start_at"`
 	CaptureInterface string                      `json:"capture_interface"`
 	Details          []AggregationTrafficDetails `json:"details"`
 }

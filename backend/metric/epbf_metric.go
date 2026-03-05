@@ -42,6 +42,7 @@ type EbpfNetTrafficService struct {
 	metricsMap          map[uint32]*IPMetrics
 	mutex               sync.RWMutex
 	lastRequestTimeUnix int64
+	captureStartAt      int64
 }
 
 func NewEbpfNetTrafficService(keyExpiredTime time.Duration) *EbpfNetTrafficService {
@@ -49,6 +50,7 @@ func NewEbpfNetTrafficService(keyExpiredTime time.Duration) *EbpfNetTrafficServi
 		keyExpiredTime: keyExpiredTime,
 		activeChan:     make(chan struct{}, 1),
 		metricsMap:     make(map[uint32]*IPMetrics),
+		captureStartAt: time.Now().UnixNano(),
 	}
 }
 
@@ -90,6 +92,7 @@ func (svc *EbpfNetTrafficService) InitEbpfInterfaceDevice(targetInterface string
 		log.Fatalf("Attach network interface %q failed: %s", targetInterface, err)
 	}
 	log.Printf("Capture traffic from interface %q now\n", targetInterface)
+
 	startCapture(&objs)
 	svc.link = link
 	svc.objs = &objs
@@ -166,6 +169,7 @@ func (svc *EbpfNetTrafficService) Run(ctx context.Context) {
 	keyExpiredTime := svc.keyExpiredTime
 	lastSnapshots := make(map[bpf.BpfFlowKey]uint64)
 	atomic.StoreInt64(&svc.lastRequestTimeUnix, time.Now().UnixNano())
+	atomic.StoreInt64(&svc.captureStartAt, time.Now().UnixNano())
 
 	for {
 		select {
@@ -175,6 +179,7 @@ func (svc *EbpfNetTrafficService) Run(ctx context.Context) {
 		case <-svc.activeChan:
 			// 1. 收到接口请求信号，刷新最后活跃时间
 			if !isCapturing(objs) {
+				atomic.StoreInt64(&svc.captureStartAt, time.Now().UnixNano())
 				startCapture(objs)
 			}
 
@@ -209,7 +214,10 @@ func (svc *EbpfNetTrafficService) Close() {
 
 func (svc *EbpfNetTrafficService) GetAggregationTrafficMetric() model.AggregationTrafficMetric {
 	metricsMap := svc.metricsMap
+	captureStartAtUnix := atomic.LoadInt64(&svc.captureStartAt)
+	captureStartAt := time.Unix(0, captureStartAtUnix)
 	result := model.AggregationTrafficMetric{
+		CaptureStartAt:   captureStartAt,
 		CaptureInterface: svc.captureInterface,
 		Details:          make([]model.AggregationTrafficDetails, 0, len(metricsMap)),
 	}
