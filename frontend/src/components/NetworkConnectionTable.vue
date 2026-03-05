@@ -45,12 +45,12 @@ onMounted(async () => {
   if (aggregationState !== undefined) {
     uiState.accordions.aggregation = aggregationState;
   }
-  
+
   const connectionListState = await getAccordionState('network_connection_list');
   if (connectionListState !== undefined) {
     uiState.accordions.connectionList = connectionListState;
   }
-  
+
   // IP分组折叠状态
   const lanGroupState = await getAccordionState('network_connection_lan_group');
   if (lanGroupState !== undefined) {
@@ -154,12 +154,18 @@ const displayData = computed(() => {
 });
 
 // ================= 6. 聚合统计数据计算 =================
+interface TrafficMetric {
+  value: number;
+  unit: string;
+  bytes: number; // 转换为字节用于排序
+}
+
 interface IPStats {
   ip: string;
   ipType: IpAddressType;
-  trafficBytes: number;  // 总流量（字节）- 使用 total_throughput
-  uploadBytes: number;   // 上行流量（字节）- 使用 incoming
-  downloadBytes: number; // 下行流量（字节）- 使用 outgoing
+  traffic: TrafficMetric;  // 总流量 - total_throughput
+  upload: TrafficMetric;   // 上行流量 - incoming
+  download: TrafficMetric; // 下行流量 - outgoing
   tcpCount: number;
   udpCount: number;
   otherCount: number;
@@ -169,9 +175,9 @@ interface GroupStats {
   name: string;
   key: IpAddressType;
   ips: IPStats[];
-  totalTraffic: number;
-  totalUpload: number;
-  totalDownload: number;
+  totalTraffic: number; // 字节数
+  totalUpload: number;  // 字节数
+  totalDownload: number; // 字节数
   totalTcp: number;
   totalUdp: number;
   totalOther: number;
@@ -196,13 +202,13 @@ const sortIPStats = (ips: IPStats[], column: SortColumn, direction: SortDirectio
         comparison = a.ip.localeCompare(b.ip);
         break;
       case 'traffic':
-        comparison = a.trafficBytes - b.trafficBytes;
+        comparison = a.traffic.bytes - b.traffic.bytes;
         break;
       case 'upload':
-        comparison = a.uploadBytes - b.uploadBytes;
+        comparison = a.upload.bytes - b.upload.bytes;
         break;
       case 'download':
-        comparison = a.downloadBytes - b.downloadBytes;
+        comparison = a.download.bytes - b.download.bytes;
         break;
       case 'tcp':
         comparison = a.tcpCount - b.tcpCount;
@@ -226,12 +232,15 @@ const filterIPStats = (ips: IPStats[], filter: string): IPStats[] => {
   const lowerFilter = filter.toLowerCase();
   return ips.filter(ip => {
     return ip.ip.toLowerCase().includes(lowerFilter) ||
-           formatTraffic(ip.trafficBytes).toLowerCase().includes(lowerFilter) ||
-           formatTraffic(ip.uploadBytes).toLowerCase().includes(lowerFilter) ||
-           formatTraffic(ip.downloadBytes).toLowerCase().includes(lowerFilter) ||
-           String(ip.tcpCount).includes(lowerFilter) ||
-           String(ip.udpCount).includes(lowerFilter) ||
-           String(ip.otherCount).includes(lowerFilter);
+      String(ip.traffic.value).includes(lowerFilter) ||
+      ip.traffic.unit.toLowerCase().includes(lowerFilter) ||
+      String(ip.upload.value).includes(lowerFilter) ||
+      ip.upload.unit.toLowerCase().includes(lowerFilter) ||
+      String(ip.download.value).includes(lowerFilter) ||
+      ip.download.unit.toLowerCase().includes(lowerFilter) ||
+      String(ip.tcpCount).includes(lowerFilter) ||
+      String(ip.udpCount).includes(lowerFilter) ||
+      String(ip.otherCount).includes(lowerFilter);
   });
 };
 
@@ -247,9 +256,21 @@ const aggregationData = computed((): { lan: GroupStats; wan: GroupStats; unknown
   const ipStatsList: IPStats[] = allDetails.map((detail) => ({
     ip: detail.ip,
     ipType: detail.ip_type,
-    trafficBytes: metricUnitToBytes(detail.total_throughput),
-    uploadBytes: metricUnitToBytes(detail.incoming),
-    downloadBytes: metricUnitToBytes(detail.outgoing),
+    traffic: {
+      value: detail.total_throughput.value,
+      unit: detail.total_throughput.unit,
+      bytes: metricUnitToBytes(detail.total_throughput),
+    },
+    upload: {
+      value: detail.outgoing.value,
+      unit: detail.outgoing.unit,
+      bytes: metricUnitToBytes(detail.outgoing),
+    },
+    download: {
+      value: detail.incoming.value,
+      unit: detail.incoming.unit,
+      bytes: metricUnitToBytes(detail.incoming),
+    },
     tcpCount: detail.tcp,
     udpCount: detail.udp,
     otherCount: detail.other,
@@ -276,12 +297,12 @@ const aggregationData = computed((): { lan: GroupStats; wan: GroupStats; unknown
       name,
       key,
       ips,
-      totalTraffic: ips.reduce((sum, ip) => sum + ip.trafficBytes, 0),
-      totalUpload: ips.reduce((sum, ip) => sum + ip.uploadBytes, 0),
-      totalDownload: ips.reduce((sum, ip) => sum + ip.downloadBytes, 0),
-      totalTcp: ips.reduce((sum, ip) => sum + ip.tcpCount, 0),
-      totalUdp: ips.reduce((sum, ip) => sum + ip.udpCount, 0),
-      totalOther: ips.reduce((sum, ip) => sum + ip.otherCount, 0),
+      totalTraffic: ips.reduce((sum, ip) => sum + ip.traffic.bytes, 0),
+      totalUpload: ips.reduce((sum, ip) => sum + ip.upload.bytes, 0),
+      totalDownload: ips.reduce((sum, ip) => sum + ip.download.bytes, 0),
+      totalTcp: ips.reduce((sum, ip) => sum + (ip.tcpCount >= 0 ? ip.tcpCount : 0), -1),
+      totalUdp: ips.reduce((sum, ip) => sum + (ip.udpCount >= 0 ? ip.udpCount : 0), -1),
+      totalOther: ips.reduce((sum, ip) => sum + (ip.otherCount >= 0 ? ip.otherCount : 0), -1),
     };
   };
 
@@ -631,7 +652,8 @@ const getConnectionSortIcon = (columnId: string): string => {
       </div>
 
       <!-- 聚合统计内容 -->
-      <div v-show="uiState.accordions.aggregation" class="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+      <div v-show="uiState.accordions.aggregation"
+        class="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
         <!-- 全局搜索框（单独一行，居右）带清空按钮 -->
         <div class="px-4 py-3 border-b border-slate-700 flex justify-end">
           <div class="relative">
@@ -644,12 +666,12 @@ const getConnectionSortIcon = (columnId: string): string => {
             </button>
           </div>
         </div>
-        
+
         <div class="overflow-x-auto">
           <table class="w-full text-sm text-center border-collapse">
             <thead class="bg-slate-700/50 text-slate-300">
               <tr>
-                <th @click="toggleAggregationSort('ip')" 
+                <th @click="toggleAggregationSort('ip')"
                   class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors">
                   <div class="flex items-center justify-center gap-1">
                     IP 地址
@@ -713,12 +735,18 @@ const getConnectionSortIcon = (columnId: string): string => {
                       <span class="text-xs text-slate-500">({{ aggregationData.lan.ips.length }} 个 IP)</span>
                     </div>
                     <div class="flex items-center gap-4 text-xs">
-                      <span class="text-slate-400">总流量: <span class="text-slate-200 font-mono">{{ formatTraffic(aggregationData.lan.totalTraffic) }}</span></span>
-                      <span class="text-slate-400">上行: <span class="text-orange-400 font-mono">{{ formatTraffic(aggregationData.lan.totalUpload) }}</span></span>
-                      <span class="text-slate-400">下行: <span class="text-cyan-400 font-mono">{{ formatTraffic(aggregationData.lan.totalDownload) }}</span></span>
-                      <span class="text-slate-400">TCP: <span class="text-slate-200 font-mono">{{ aggregationData.lan.totalTcp }}</span></span>
-                      <span class="text-slate-400">UDP: <span class="text-slate-200 font-mono">{{ aggregationData.lan.totalUdp }}</span></span>
-                      <span class="text-slate-400">其他: <span class="text-slate-200 font-mono">{{ aggregationData.lan.totalOther }}</span></span>
+                      <span class="text-slate-400">总流量: <span class="text-slate-200 font-mono">{{
+                        formatTraffic(aggregationData.lan.totalTraffic) }}</span></span>
+                      <span class="text-slate-400">上行: <span class="text-orange-400 font-mono">{{
+                        formatTraffic(aggregationData.lan.totalUpload) }}</span></span>
+                      <span class="text-slate-400">下行: <span class="text-cyan-400 font-mono">{{
+                        formatTraffic(aggregationData.lan.totalDownload) }}</span></span>
+                      <span class="text-slate-400">TCP: <span class="text-slate-200 font-mono">{{
+                        aggregationData.lan.totalTcp }}</span></span>
+                      <span class="text-slate-400">UDP: <span class="text-slate-200 font-mono">{{
+                        aggregationData.lan.totalUdp }}</span></span>
+                      <span class="text-slate-400">其他: <span class="text-slate-200 font-mono">{{
+                        aggregationData.lan.totalOther }}</span></span>
                     </div>
                   </div>
                 </td>
@@ -730,13 +758,16 @@ const getConnectionSortIcon = (columnId: string): string => {
                   <span class="font-mono text-slate-300">{{ ipStats.ip }}</span>
                 </td>
                 <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-slate-200">{{ formatTraffic(ipStats.trafficBytes) }}</span>
+                  <span class="font-mono text-slate-200">{{ ipStats.traffic.value.toFixed(2) }} {{ ipStats.traffic.unit
+                    }}</span>
                 </td>
                 <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-orange-400">{{ formatTraffic(ipStats.uploadBytes) }}</span>
+                  <span class="font-mono text-orange-400">{{ ipStats.upload.value.toFixed(2) }} {{ ipStats.upload.unit
+                    }}</span>
                 </td>
                 <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-cyan-400">{{ formatTraffic(ipStats.downloadBytes) }}</span>
+                  <span class="font-mono text-cyan-400">{{ ipStats.download.value.toFixed(2) }} {{ ipStats.download.unit
+                    }}</span>
                 </td>
                 <td class="px-3 py-2 text-center">
                   <span class="font-mono text-slate-200">{{ ipStats.tcpCount }}</span>
@@ -764,12 +795,18 @@ const getConnectionSortIcon = (columnId: string): string => {
                       <span class="text-xs text-slate-500">({{ aggregationData.wan.ips.length }} 个 IP)</span>
                     </div>
                     <div class="flex items-center gap-4 text-xs">
-                      <span class="text-slate-400">总流量: <span class="text-slate-200 font-mono">{{ formatTraffic(aggregationData.wan.totalTraffic) }}</span></span>
-                      <span class="text-slate-400">上行: <span class="text-orange-400 font-mono">{{ formatTraffic(aggregationData.wan.totalUpload) }}</span></span>
-                      <span class="text-slate-400">下行: <span class="text-cyan-400 font-mono">{{ formatTraffic(aggregationData.wan.totalDownload) }}</span></span>
-                      <span class="text-slate-400">TCP: <span class="text-slate-200 font-mono">{{ aggregationData.wan.totalTcp }}</span></span>
-                      <span class="text-slate-400">UDP: <span class="text-slate-200 font-mono">{{ aggregationData.wan.totalUdp }}</span></span>
-                      <span class="text-slate-400">其他: <span class="text-slate-200 font-mono">{{ aggregationData.wan.totalOther }}</span></span>
+                      <span class="text-slate-400">总流量: <span class="text-slate-200 font-mono">{{
+                        formatTraffic(aggregationData.wan.totalTraffic) }}</span></span>
+                      <span class="text-slate-400">上行: <span class="text-orange-400 font-mono">{{
+                        formatTraffic(aggregationData.wan.totalUpload) }}</span></span>
+                      <span class="text-slate-400">下行: <span class="text-cyan-400 font-mono">{{
+                        formatTraffic(aggregationData.wan.totalDownload) }}</span></span>
+                      <span class="text-slate-400">TCP: <span class="text-slate-200 font-mono">{{
+                        aggregationData.wan.totalTcp }}</span></span>
+                      <span class="text-slate-400">UDP: <span class="text-slate-200 font-mono">{{
+                        aggregationData.wan.totalUdp }}</span></span>
+                      <span class="text-slate-400">其他: <span class="text-slate-200 font-mono">{{
+                        aggregationData.wan.totalOther }}</span></span>
                     </div>
                   </div>
                 </td>
@@ -781,13 +818,16 @@ const getConnectionSortIcon = (columnId: string): string => {
                   <span class="font-mono text-slate-300">{{ ipStats.ip }}</span>
                 </td>
                 <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-slate-200">{{ formatTraffic(ipStats.trafficBytes) }}</span>
+                  <span class="font-mono text-slate-200">{{ ipStats.traffic.value.toFixed(2) }} {{ ipStats.traffic.unit
+                    }}</span>
                 </td>
                 <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-orange-400">{{ formatTraffic(ipStats.uploadBytes) }}</span>
+                  <span class="font-mono text-orange-400">{{ ipStats.upload.value.toFixed(2) }} {{ ipStats.upload.unit
+                    }}</span>
                 </td>
                 <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-cyan-400">{{ formatTraffic(ipStats.downloadBytes) }}</span>
+                  <span class="font-mono text-cyan-400">{{ ipStats.download.value.toFixed(2) }} {{ ipStats.download.unit
+                    }}</span>
                 </td>
                 <td class="px-3 py-2 text-center">
                   <span class="font-mono text-slate-200">{{ ipStats.tcpCount }}</span>
@@ -815,30 +855,39 @@ const getConnectionSortIcon = (columnId: string): string => {
                       <span class="text-xs text-slate-500">({{ aggregationData.unknown.ips.length }} 个 IP)</span>
                     </div>
                     <div class="flex items-center gap-4 text-xs">
-                      <span class="text-slate-400">总流量: <span class="text-slate-200 font-mono">{{ formatTraffic(aggregationData.unknown.totalTraffic) }}</span></span>
-                      <span class="text-slate-400">上行: <span class="text-orange-400 font-mono">{{ formatTraffic(aggregationData.unknown.totalUpload) }}</span></span>
-                      <span class="text-slate-400">下行: <span class="text-cyan-400 font-mono">{{ formatTraffic(aggregationData.unknown.totalDownload) }}</span></span>
-                      <span class="text-slate-400">TCP: <span class="text-slate-200 font-mono">{{ aggregationData.unknown.totalTcp }}</span></span>
-                      <span class="text-slate-400">UDP: <span class="text-slate-200 font-mono">{{ aggregationData.unknown.totalUdp }}</span></span>
-                      <span class="text-slate-400">其他: <span class="text-slate-200 font-mono">{{ aggregationData.unknown.totalOther }}</span></span>
+                      <span class="text-slate-400">总流量: <span class="text-slate-200 font-mono">{{
+                        formatTraffic(aggregationData.unknown.totalTraffic) }}</span></span>
+                      <span class="text-slate-400">上行: <span class="text-orange-400 font-mono">{{
+                        formatTraffic(aggregationData.unknown.totalUpload) }}</span></span>
+                      <span class="text-slate-400">下行: <span class="text-cyan-400 font-mono">{{
+                        formatTraffic(aggregationData.unknown.totalDownload) }}</span></span>
+                      <span class="text-slate-400">TCP: <span class="text-slate-200 font-mono">{{
+                        aggregationData.unknown.totalTcp }}</span></span>
+                      <span class="text-slate-400">UDP: <span class="text-slate-200 font-mono">{{
+                        aggregationData.unknown.totalUdp }}</span></span>
+                      <span class="text-slate-400">其他: <span class="text-slate-200 font-mono">{{
+                        aggregationData.unknown.totalOther }}</span></span>
                     </div>
                   </div>
                 </td>
               </tr>
               <!-- 未知IP详细行 -->
-              <tr v-for="ipStats in aggregationData.unknown.ips" :key="ipStats.ip" v-show="!uiState.ipGroupCollapsed.unknown"
-                class="hover:bg-slate-700/30 transition-colors">
+              <tr v-for="ipStats in aggregationData.unknown.ips" :key="ipStats.ip"
+                v-show="!uiState.ipGroupCollapsed.unknown" class="hover:bg-slate-700/30 transition-colors">
                 <td class="px-3 py-2 text-center">
                   <span class="font-mono text-slate-300">{{ ipStats.ip }}</span>
                 </td>
                 <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-slate-200">{{ formatTraffic(ipStats.trafficBytes) }}</span>
+                  <span class="font-mono text-slate-200">{{ ipStats.traffic.value.toFixed(2) }} {{ ipStats.traffic.unit
+                    }}</span>
                 </td>
                 <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-orange-400">{{ formatTraffic(ipStats.uploadBytes) }}</span>
+                  <span class="font-mono text-orange-400">{{ ipStats.upload.value.toFixed(2) }} {{ ipStats.upload.unit
+                    }}</span>
                 </td>
                 <td class="px-3 py-2 text-center">
-                  <span class="font-mono text-cyan-400">{{ formatTraffic(ipStats.downloadBytes) }}</span>
+                  <span class="font-mono text-cyan-400">{{ ipStats.download.value.toFixed(2) }} {{ ipStats.download.unit
+                    }}</span>
                 </td>
                 <td class="px-3 py-2 text-center">
                   <span class="font-mono text-slate-200">{{ ipStats.tcpCount }}</span>
@@ -872,7 +921,8 @@ const getConnectionSortIcon = (columnId: string): string => {
       </div>
 
       <!-- 连接列表内容 -->
-      <div v-show="uiState.accordions.connectionList" class="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+      <div v-show="uiState.accordions.connectionList"
+        class="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
         <!-- 全局搜索框（单独一行，居右）带清空按钮 -->
         <div class="px-4 py-3 border-b border-slate-700 flex justify-end">
           <div class="relative">
@@ -885,15 +935,14 @@ const getConnectionSortIcon = (columnId: string): string => {
             </button>
           </div>
         </div>
-        
+
         <div class="overflow-x-auto">
           <table class="w-full text-sm text-center border-collapse">
             <thead class="bg-slate-700/50 text-slate-300">
               <tr>
                 <th v-for="header in table.getHeaderGroups()[0].headers" :key="header.id"
                   @click="header.column.getCanSort() ? header.column.toggleSorting(undefined, header.column.getIsSorted() === false) : null"
-                  class="px-3 py-3 font-medium text-center whitespace-nowrap"
-                  :class="{ 
+                  class="px-3 py-3 font-medium text-center whitespace-nowrap" :class="{
                     'cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors': header.column.getCanSort(),
                   }">
                   <div class="flex items-center justify-center gap-1">
