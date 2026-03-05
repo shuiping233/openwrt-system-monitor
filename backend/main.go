@@ -184,7 +184,7 @@ func main() {
 		staticMetricInterval        = flag.Uint("static-metric-interval", 60, "metric update interval")
 		trafficCaptureInterfaceName = flag.String("traffic-capture-interface-name", "br-lan", "traffic capture interface name , only use on realtime traffic capture and should be input LAN interface")
 		trafficKeyExpiredTime       = flag.Duration("traffic-key-expired-time", 35*time.Second, "metric update interval")
-		dnsServerIp                 = flag.String("dns-server-ip", "127.0.0.1", "dns server ip")
+		dnsServerIp                 = flag.String("dns-server-ip", "127.0.0.1", "dns server ip , ipv6 support , only support tcp or udp 53 port dns")
 		dnsQueryTimeout             = flag.Duration("dns-query-timeout", 1*time.Second, "dns query timeout")
 	)
 	flag.Parse()
