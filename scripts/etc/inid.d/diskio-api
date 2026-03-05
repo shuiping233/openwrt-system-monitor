@@ -10,6 +10,8 @@ STATIC_METRIC_INTERVAL=60  # second
 NETWORK_CONNECTION_INTERVAL=5  # second
 TRAFFIC_CAPTURE_INTERFACE_NAME=br-lan
 TRAFFIC_KEY_EXPIRED_TIME=20s # with time unit , example : 1m
+DNS_SERVER_IP=127.0.0.1
+DNS_QUERY_TIMEOUT=1s # with time unit , example : 1m
 PIDFILE=/var/run/diskio-api.pid
 
 USE_PROCD=1
@@ -20,7 +22,7 @@ start_service() {
     }
 
     procd_open_instance
-    procd_set_param command "$PROG" --host "$HOST" --port "$PORT" --dynamic-metric-interval "$DYNAMIC_METRIC_INTERVAL" --static-metric-interval "$STATIC_METRIC_INTERVAL" --network-connection-interval "$NETWORK_CONNECTION_INTERVAL" --traffic-capture-interface-name "$TRAFFIC_CAPTURE_INTERFACE_NAME" --traffic-key-expired-time "$TRAFFIC_KEY_EXPIRED_TIME"
+    procd_set_param command "$PROG" --host "$HOST" --port "$PORT" --dynamic-metric-interval "$DYNAMIC_METRIC_INTERVAL" --static-metric-interval "$STATIC_METRIC_INTERVAL" --network-connection-interval "$NETWORK_CONNECTION_INTERVAL" --traffic-capture-interface-name "$TRAFFIC_CAPTURE_INTERFACE_NAME" --traffic-key-expired-time "$TRAFFIC_KEY_EXPIRED_TIME" --dns-server-ip "$DNS_SERVER_IP" --dns-query-timeout "$DNS_QUERY_TIMEOUT"
     procd_set_param respawn
     procd_set_param stdout 1
     procd_set_param stderr 1
