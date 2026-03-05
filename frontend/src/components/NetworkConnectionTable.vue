@@ -687,7 +687,13 @@ const columns = [
       const port = row.original.source_port;
       const family = typeof row.original.ip_family === 'string' ? row.original.ip_family : '';
       const fullAddress = `${formatIP(ip as string, family)}:${port}`;
-      return fullAddress.toLowerCase().includes(filterValue.toLowerCase());
+      const searchStr = filterValue.toLowerCase();
+      // 检查 IP 和端口
+      if (fullAddress.toLowerCase().includes(searchStr)) return true;
+      // 检查 hostname
+      const hostname = dnsCache.value.get(ip as string);
+      if (hostname && hostname.toLowerCase().includes(searchStr)) return true;
+      return false;
     },
   }),
   // 目标地址
@@ -724,7 +730,13 @@ const columns = [
       const port = row.original.destination_port;
       const family = typeof row.original.ip_family === 'string' ? row.original.ip_family : '';
       const fullAddress = `${formatIP(ip as string, family)}:${port}`;
-      return fullAddress.toLowerCase().includes(filterValue.toLowerCase());
+      const searchStr = filterValue.toLowerCase();
+      // 检查 IP 和端口
+      if (fullAddress.toLowerCase().includes(searchStr)) return true;
+      // 检查 hostname
+      const hostname = dnsCache.value.get(ip as string);
+      if (hostname && hostname.toLowerCase().includes(searchStr)) return true;
+      return false;
     },
   }),
   // 状态
@@ -1003,8 +1015,40 @@ const table = useVueTable({
     sorting: initialSorting,
   },
   globalFilterFn: (row, columnId, value) => {
-    const search = String(value).toLowerCase();
-    const rowStr = Object.values(row.original).join(' ').toLowerCase();
+    const search = String(value).toLowerCase().replace(/\s+/g, '');
+    const original = row.original;
+    
+    // 构建要搜索的字符串数组
+    const searchFields: string[] = [];
+    
+    // 基础字段
+    searchFields.push(original.ip_family || '');
+    searchFields.push(original.protocol || '');
+    searchFields.push(original.source_ip || '');
+    searchFields.push(String(original.source_port || ''));
+    searchFields.push(original.destination_ip || '');
+    searchFields.push(String(original.destination_port || ''));
+    searchFields.push(original.state || '');
+    
+    // 添加 hostname（如果 DNS 已查询）
+    const sourceHostname = dnsCache.value.get(original.source_ip);
+    const destHostname = dnsCache.value.get(original.destination_ip);
+    if (sourceHostname) searchFields.push(sourceHostname);
+    if (destHostname) searchFields.push(destHostname);
+    
+    // 格式化后的流量值（数值+单位）
+    const trafficValue = original.traffic?.value || 0;
+    const trafficUnit = original.traffic?.unit || 'B';
+    const formattedTraffic = BytesFixed(trafficValue, trafficUnit) + trafficUnit;
+    searchFields.push(formattedTraffic);
+    searchFields.push(String(trafficValue));
+    searchFields.push(trafficUnit);
+    
+    // 包数量
+    searchFields.push(String(original.packets || ''));
+    
+    // 合并并搜索
+    const rowStr = searchFields.join(' ').toLowerCase().replace(/\s+/g, '');
     return rowStr.includes(search);
   },
   onPaginationChange: (updater) => {
