@@ -164,7 +164,10 @@ func GetInterfaceIpv4Info(interfaceName string) (addr netip.Addr, prefix netip.P
 
 	// netlink 返回的是 net.IP，转为 netip.Addr
 	// addrList[0].IP 是自身 IP，addrList[0].Mask 是掩码
-	ip, _ := netip.ParseAddr(addrList[0].IP.String())
+	ip, err := netip.ParseAddr(addrList[0].IP.String())
+	if err != nil {
+		return addr, prefix, fmt.Errorf("Get invalid ipv4 address from interface %q : %v", interfaceName, err)
+	}
 	ones, _ := addrList[0].Mask.Size()
 
 	return ip, netip.PrefixFrom(ip, ones).Masked(), nil
@@ -182,14 +185,14 @@ func GetInterfaceGuaIpv6Info(interfaceName string) (addr netip.Addr, prefix neti
 		return addr, prefix, err
 	}
 
-	for _, a := range addrs {
-		ip, _ := netip.ParseAddr(a.IP.String())
+	for _, item := range addrs {
+		ip, _ := netip.ParseAddr(item.IP.String())
 		// 排除链路本地地址 (fe80::)
 		if ip.IsLinkLocalUnicast() {
 			continue
 		}
 		// 寻找 GUA 前缀（掩码小于 128 的通常是运营商下发的 PD 前缀段）
-		ones, _ := a.Mask.Size()
+		ones, _ := item.Mask.Size()
 		if ones < 128 {
 			addr = ip
 			prefix = netip.PrefixFrom(ip, ones).Masked()

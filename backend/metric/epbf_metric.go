@@ -324,19 +324,39 @@ func (svc *EbpfNetTrafficService) parseToAddr(addr [4]uint32, family uint8) neti
 
 func (svc *EbpfNetTrafficService) refreshInterfaceInfo() {
 	// 防止 refresh 时 frame 函数正在读取
+	ipv4, ipv4Prefix, err4 := utils.GetInterfaceIpv4Info(svc.captureInterface)
+	if err4 != nil {
+		log.Println(err4)
+	}
+	ipv6, ipv6Prefix, err6 := utils.GetInterfaceGuaIpv6Info(svc.captureInterface)
+	if err6 != nil {
+		log.Println(err6)
+	}
+	if err4 != nil && err6 != nil {
+		return
+	}
+
+	v4Change := ipv4Prefix != svc.interfaceIpv4Prefix
+	v6Change := ipv6Prefix != svc.interfaceIpv6Prefix
+	if !v4Change && !v6Change {
+		return
+	}
+
 	svc.mutex.Lock()
 	defer svc.mutex.Unlock()
-
-	if addr, prefix, err := utils.GetInterfaceIpv4Info(svc.captureInterface); err == nil {
-		svc.interfaceIpv4 = addr
-		svc.interfaceIpv4Prefix = prefix
+	if err4 == nil && v4Change {
+		svc.interfaceIpv4 = ipv4
+		svc.interfaceIpv4Prefix = ipv4Prefix
+		log.Printf("[Network] IPv4 Updated: %s (Prefix: %s)", ipv4, ipv4Prefix)
 	}
-	if addr, prefix, err := utils.GetInterfaceGuaIpv6Info(svc.captureInterface); err == nil {
-		svc.interfaceIpv6 = addr
-		svc.interfaceIpv6Prefix = prefix
-		log.Printf("IPv6 Prefix updated to: %s", prefix)
+
+	if err6 == nil && v6Change {
+		svc.interfaceIpv6 = ipv6
+		svc.interfaceIpv6Prefix = ipv6Prefix
+		log.Printf("[Network] IPv6 Updated: %s (Prefix: %s)", ipv6, ipv6Prefix)
 	}
 }
+
 func (svc *EbpfNetTrafficService) WatchNetworkChanges(ctx context.Context, ch <-chan netlink.AddrUpdate) {
 	log.Println("Watching for network interface changes...")
 	for {
@@ -350,7 +370,8 @@ func (svc *EbpfNetTrafficService) WatchNetworkChanges(ctx context.Context, ch <-
 			}
 			link, _ := netlink.LinkByIndex(update.LinkIndex)
 			if link != nil && link.Attrs().Name == svc.captureInterface {
-				log.Printf("Network change (NewAddr: %v) detected on %s", update.NewAddr, svc.captureInterface)
+				// 内核很多网卡事件都会进来,所以不打印
+				// log.Printf("Network change (NewAddr: %v) detected on %s", update.NewAddr, svc.captureInterface)
 				svc.refreshInterfaceInfo()
 			}
 		}
