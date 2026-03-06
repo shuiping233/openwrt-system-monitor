@@ -1432,11 +1432,11 @@ const getConnectionSortIcon = (columnId: string): string => {
                     </span>
                   </div>
                   <!-- 列过滤器 -->
-                  <div v-if="header.column.getCanFilter()" class="mt-1">
+                  <div v-if="header.column.getCanFilter()" class="mt-1 flex justify-center">
                     <input :value="header.column.getFilterValue() ?? ''"
                       @input="e => header.column.setFilterValue((e.target as HTMLInputElement).value)"
                       :placeholder="`过滤 ${header.column.columnDef.header as string}...`"
-                      class="bg-slate-900 border border-slate-600 text-xs px-1 py-0.5 rounded w-24 text-slate-200 outline-none"
+                      class="bg-slate-900 border border-slate-600 text-xs px-1 py-0.5 rounded w-full max-w-[calc(70%-8px)] text-slate-200 outline-none"
                       @click.stop />
                   </div>
                 </th>
