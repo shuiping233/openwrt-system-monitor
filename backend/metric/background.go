@@ -158,6 +158,8 @@ func (b *BackgroundService) Worker(index int) {
 	defer b.wg.Done()
 	for key := range b.UpdateEventChan {
 		switch key {
+		case model.JsonCacheKeyDynamicMetric:
+			b.UpdateDynamicMetric()
 		case model.JsonCacheKeyStaticMetric:
 			b.UpdateStaticMetric()
 		case model.JsonCacheKeyNetworkConnectionMetric:
@@ -190,9 +192,6 @@ func (b *BackgroundService) GetJsonBytes(key string) []byte {
 	cache, ok := rawCache.(model.CacheValue)
 	if !ok {
 		log.Fatalf("get json cache %q failed : not valid %T ", key, model.CacheValue{})
-	}
-	if key == model.JsonCacheKeyDynamicMetric {
-		return cache.Data
 	}
 
 	now := time.Now().UTC()

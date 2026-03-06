@@ -74,7 +74,7 @@ func NetworkConnectionMetricHandler(w http.ResponseWriter, r *http.Request) {
 	jsonBytes := background.GetJsonBytes(model.JsonCacheKeyNetworkConnectionMetric)
 	if len(jsonBytes) == 0 {
 		var err error
-		jsonBytes, err = json.Marshal(&model.DynamicMetric{})
+		jsonBytes, err = json.Marshal(&model.NetworkConnectionMetric{})
 		if err != nil {
 			errMsg := fmt.Sprintf("json marshal error : %s", err.Error())
 			http.Error(w, errMsg, http.StatusInternalServerError)
@@ -94,7 +94,7 @@ func StaticMetricHandler(w http.ResponseWriter, r *http.Request) {
 	jsonBytes := background.GetJsonBytes(model.JsonCacheKeyStaticMetric)
 	if len(jsonBytes) == 0 {
 		var err error
-		jsonBytes, err = json.Marshal(&model.DynamicMetric{})
+		jsonBytes, err = json.Marshal(&model.StaticMetric{})
 		if err != nil {
 			errMsg := fmt.Sprintf("json marshal error : %s", err.Error())
 			http.Error(w, errMsg, http.StatusInternalServerError)

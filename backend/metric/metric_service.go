@@ -55,7 +55,7 @@ func (dms *DynamicMetricService) Run(ctx context.Context) {
 			return
 		case <-dms.activeChan:
 			if !isRunning {
-				log.Println("Receive dynamic system metric service active signal")
+				log.Println("Enable dynamic system metric service")
 				isRunning = true
 				prevTime = time.Now()
 			}
@@ -65,8 +65,9 @@ func (dms *DynamicMetricService) Run(ctx context.Context) {
 			}
 
 			lastUnix := atomic.LoadInt64(&dms.lastRequestTimeUnix)
-			lastTime := time.Unix(0, lastUnix)
-			if time.Since(lastTime) > model.MinServiceRunDuration {
+			lastRequestTime := time.Unix(0, lastUnix)
+			if time.Since(lastRequestTime) > model.MinServiceRunDuration {
+				log.Println("Disable dynamic system metric service")
 				isRunning = false
 				continue
 			}
