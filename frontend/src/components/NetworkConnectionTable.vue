@@ -28,7 +28,7 @@ const props = defineProps<{
 const { getAccordionState, setAccordionState } = useDatabase();
 
 // DNS Query
-const { queryDns } = useDnsQuery();
+const { queryDns, getCachedHostname } = useDnsQuery();
 const { settings, setConfig: setConfig } = useSettings();
 
 // DNS 缓存映射表
@@ -63,8 +63,9 @@ const enableConnectionsDns = computed({
 });
 
 // 获取 IP 显示文本（主机名或 IP）
+// 优先查全局 DNS 缓存（切换 tab 后缓存仍然有效），其次查组件本地缓存
 const getIpDisplay = (ip: string): string => {
-  return dnsCache.value.get(ip) || ip;
+  return getCachedHostname(ip) || dnsCache.value.get(ip) || ip;
 };
 
 const getIpv6Display = (ip: string): string => {

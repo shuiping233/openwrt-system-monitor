@@ -171,9 +171,15 @@ export function useDnsQuery() {
     getCache().clear();
   };
 
+  // 从缓存获取指定 IP 的 hostname（如果不存在返回 undefined）
+  const getCachedHostname = (ip: string): string | undefined => {
+    return getCache().get(ip);
+  };
+
   return {
     queryDns,
     clearCache,
+    getCachedHostname,
     isQuerying: computed(() => isQuerying.value),
     error: computed(() => error.value),
   };
