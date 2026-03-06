@@ -274,6 +274,24 @@ const formatCaptureStartTime = (isoString: string | undefined): string => {
   }
 };
 
+// 根据总实时速率单位获取背景色类（夜晚友好）
+const getThroughputBgClass = (unit: string): string => {
+  switch (unit.toUpperCase()) {
+    case 'B/S':
+      return ''; // 无背景色
+    case 'KB/S':
+      return 'bg-slate-700/20'; // 很淡的 slate
+    case 'MB/S':
+      return 'bg-cyan-900/25'; // 淡青色
+    case 'GB/S':
+      return 'bg-blue-900/35'; // 中蓝色
+    case 'TB/S':
+      return 'bg-indigo-900/45'; // 深蓝/靛蓝
+    default:
+      return '';
+  }
+};
+
 // ================= 2. 全局搜索词 =================
 const globalFilter = ref('');
 const aggregationFilter = ref(''); // 聚合统计的搜索词
@@ -1189,7 +1207,7 @@ const getConnectionSortIcon = (columnId: string): string => {
           <div class="flex items-center gap-2 text-sm">
             <span class="text-slate-400">流量统计起始时间:</span>
             <span class="text-slate-300 font-mono">{{ formatCaptureStartTime(aggregationData?.capture_start_at)
-            }}</span>
+              }}</span>
           </div>
           <!-- 全局搜索框（居右） -->
           <div class="relative">
@@ -1318,7 +1336,7 @@ const getConnectionSortIcon = (columnId: string): string => {
                 </tr>
                 <!-- 分组详细行 -->
                 <tr v-for="ipStats in group.ips" :key="ipStats.ip" v-show="!uiState.ipGroupCollapsed[group.key]"
-                  class="hover:bg-slate-700/30 transition-colors">
+                  :class="['hover:bg-slate-700/30 transition-colors', getThroughputBgClass(ipStats.totalThroughput.unit)]">
                   <td class="px-3 py-2 text-center">
                     <span class="font-mono text-slate-300" :title="ipStats.ip">{{ ipStats.ipFamily == "ipv4" ?
                       getIpDisplay(ipStats.ip) : getIpv6Display(ipStats.ip) }}</span>
