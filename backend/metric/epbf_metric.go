@@ -416,13 +416,13 @@ func (svc *EbpfNetTrafficService) cleanupExpiredFlows(
 	for {
 		count, err := objs.FlowMap.BatchLookup(&cursor, keys, vals, nil)
 
-		for i := 0; i < count; i++ {
-			key := keys[i]
+		for index := range count {
+			key := keys[index]
 			// 找到该 Key 在所有 CPU 上的最大 LastSeen
 			var maxLastSeen uint64
 			for cpu := 0; cpu < runtime.NumCPU(); cpu++ {
-				if vals[i*runtime.NumCPU()+cpu].LastSeen > maxLastSeen {
-					maxLastSeen = vals[i*runtime.NumCPU()+cpu].LastSeen
+				if vals[index*runtime.NumCPU()+cpu].LastSeen > maxLastSeen {
+					maxLastSeen = vals[index*runtime.NumCPU()+cpu].LastSeen
 				}
 			}
 
@@ -439,7 +439,10 @@ func (svc *EbpfNetTrafficService) cleanupExpiredFlows(
 
 	if len(keysToDelete) > 0 {
 		// 1. 从内核 Map 批量删除
-		_, _ = objs.FlowMap.BatchDelete(keysToDelete, nil)
+		_, err := objs.FlowMap.BatchDelete(keysToDelete, nil)
+		if err != nil {
+			log.Println("Batch delete ebpf flow map failed:", err)
+		}
 
 		// 2. 从 Go 内存快照删除 (由于 lastSnapshots 不是并发安全的，需要加锁或交给下一帧处理)
 		// 这里建议在 svc.mutex 保护下清理
@@ -448,9 +451,16 @@ func (svc *EbpfNetTrafficService) cleanupExpiredFlows(
 			delete(lastSnapshots, k)
 			// 如果你觉得 metricsMap 里的 IP 也太久没见了，也可以顺便清理
 		}
+		// 额外逻辑：清理 metricsMap 中长期无流量的 IP
+		for ip, m := range svc.metricsMap {
+			if m.UploadRate == 0 && m.DownloadRate == 0 && m.SmoothUploadRate < 0.1 && m.SmoothDownloadRate < 0.1 {
+				// 为了保险，可以再加个静默时间判断，防止闪现
+				delete(svc.metricsMap, ip)
+			}
+		}
 		svc.mutex.Unlock()
 
-		log.Printf("[GC] Cleaned up %d expired flows", len(keysToDelete))
+		// log.Printf("[GC] Cleaned up %d expired flows", len(keysToDelete))
 	}
 }
 
