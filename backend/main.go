@@ -60,6 +60,7 @@ func DynamicMetricHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.Write(jsonBytes)
+	background.DynamicMetricServiceActiveSignal()
 }
 
 func NetworkConnectionMetricHandler(w http.ResponseWriter, r *http.Request) {
@@ -129,7 +130,7 @@ func DnsQueryHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := r.URL.Query()
-	ipParams, ok := query["ip"] // 对应方式 A
+	ipParams, ok := query["ip"]
 	if !ok {
 		http.Error(w, "missing \"ip\" query parameter", http.StatusBadRequest)
 		return
@@ -183,7 +184,7 @@ func main() {
 		networkConnectionInterval   = flag.Uint("network-connection-interval", 10, "network connection details update interval")
 		staticMetricInterval        = flag.Uint("static-metric-interval", 60, "metric update interval")
 		trafficCaptureInterfaceName = flag.String("traffic-capture-interface-name", "br-lan", "traffic capture interface name , only use on realtime traffic capture and should be input LAN interface")
-		trafficKeyExpiredTime       = flag.Duration("traffic-key-expired-time", 35*time.Second, "metric update interval")
+		trafficKeyExpiredTime       = flag.Duration("traffic-key-expired-time", model.MinServiceRunDuration, "metric update interval")
 		dnsServerIp                 = flag.String("dns-server-ip", "127.0.0.1", "dns server ip , ipv6 support , only support tcp or udp 53 port dns")
 		dnsQueryTimeout             = flag.Duration("dns-query-timeout", 1*time.Second, "dns query timeout")
 	)

@@ -105,21 +105,23 @@ func (svc *EbpfNetTrafficService) frame(
 	keyExpiredTime time.Duration,
 	lastSnapshots map[bpf.BpfFlowKey]uint64,
 ) {
+	if !isCapturing(objs) {
+		return
+	}
+
 	metricsMap := svc.metricsMap
 	lastUnix := atomic.LoadInt64(&svc.lastRequestTimeUnix)
 	lastTime := time.Unix(0, lastUnix)
 	svc.mutex.Lock()
 	defer svc.mutex.Unlock()
 
-	if isCapturing(objs) {
-		// 如果超过 n 秒没收到新请求，则关停以节省资源
-		if time.Since(lastTime) > keyExpiredTime {
-			stopCapture(objs)
-			clearFlowMap(objs.FlowMap)
-			clear(metricsMap)
-			clear(lastSnapshots)
-			return
-		}
+	// 如果超过 n 秒没收到新请求，则关停以节省资源
+	if time.Since(lastTime) > keyExpiredTime {
+		stopCapture(objs)
+		clearFlowMap(objs.FlowMap)
+		clear(metricsMap)
+		clear(lastSnapshots)
+		return
 	}
 
 	nowKtime := getKtimeNS()
@@ -212,11 +214,11 @@ func (svc *EbpfNetTrafficService) Close() {
 	svc.objs.Close()
 }
 
-func (svc *EbpfNetTrafficService) GetAggregationTrafficMetric() model.AggregationTrafficMetric {
+func (svc *EbpfNetTrafficService) GetAggregationTrafficMetric() *model.AggregationTrafficMetric {
 	metricsMap := svc.metricsMap
 	captureStartAtUnix := atomic.LoadInt64(&svc.captureStartAt)
 	captureStartAt := time.Unix(0, captureStartAtUnix)
-	result := model.AggregationTrafficMetric{
+	result := &model.AggregationTrafficMetric{
 		CaptureStartAt:   captureStartAt,
 		CaptureInterface: svc.captureInterface,
 		Details:          make([]model.AggregationTrafficDetails, 0, len(metricsMap)),

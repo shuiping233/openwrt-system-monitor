@@ -28,6 +28,7 @@ type BackgroundService struct {
 	UpdateEventChan                        chan string
 	wg                                     sync.WaitGroup
 	ebpfService                            *EbpfNetTrafficService
+	dynamicMetricService                   *DynamicMetricService
 }
 
 func (b *BackgroundService) SetConfig(
@@ -74,54 +75,33 @@ func (b *BackgroundService) UpdateStaticMetric() {
 }
 
 func (b *BackgroundService) RunDynamicMetricService(ctx context.Context) {
-	diskSnap := model.DiskSnap{}
-	cpuSnap := model.CpuSnap{}
-	netSnap := model.NetSnap{
-		Interfaces: map[string]model.NetSnapUnit{},
+	if b.dynamicMetricService == nil {
+		b.dynamicMetricService = NewDynamicMetricService(
+			b.Reader,
+			b.UpdateDynamicMetricInterval,
+		)
 	}
+
+	go b.dynamicMetricService.Run(ctx)
+	b.UpdateDynamicMetric()
+}
+
+func (b *BackgroundService) DynamicMetricServiceActiveSignal() {
+	b.dynamicMetricService.ActiveSignal()
+}
+
+func (b *BackgroundService) UpdateDynamicMetric() {
+	dynamicMetric := b.dynamicMetricService.GetDynamicMetric()
 	updateInterval := b.UpdateDynamicMetricInterval
-	ticker := time.NewTicker(time.Duration(updateInterval) * time.Second)
-	defer ticker.Stop()
-
-	prevTime := time.Now()
-
-	for {
-		select {
-		case <-ctx.Done():
-			// 这里没东西要释放,退出即可
-			return
-		case <-ticker.C:
-			currTime := time.Now()
-			elapsed := currTime.Sub(prevTime).Seconds()
-			if elapsed <= 0 {
-				continue
-			}
-			networkMetric := ReadNetworkMetric(b.Reader, &netSnap, updateInterval)
-			cpuMetric := ReadCpuMetric(b.Reader, &cpuSnap)
-			storageMetric := ReadStorageMetric(b.Reader, diskSnap, updateInterval)
-			memoryMetric := ReadMemoryMetric(b.Reader)
-			systemMetric := ReadSystemMetric(b.Reader)
-
-			jsonBytes, err := json.Marshal(&model.DynamicMetric{
-				Cpu:     cpuMetric,
-				Memory:  memoryMetric,
-				Network: networkMetric,
-				Storage: storageMetric,
-				System:  systemMetric,
-			})
-			if err != nil {
-				log.Printf("DynamicMetric json marshal error : %s", err)
-			}
-
-			b.setJsonBytes(
-				model.JsonCacheKeyDynamicMetric,
-				time.Duration(updateInterval)*time.Second,
-				jsonBytes,
-			)
-
-			prevTime = currTime
-		}
+	jsonBytes, err := json.Marshal(dynamicMetric)
+	if err != nil {
+		log.Printf("dynamicMetric json marshal error : %s", err)
 	}
+	b.setJsonBytes(
+		model.JsonCacheKeyDynamicMetric,
+		time.Duration(updateInterval)*time.Second,
+		jsonBytes,
+	)
 }
 
 func (b *BackgroundService) RunAggregationTrafficService(ctx context.Context) {

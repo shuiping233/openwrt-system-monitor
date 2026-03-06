@@ -2,6 +2,8 @@ package model
 
 import "time"
 
+const MinServiceRunDuration = 35 * time.Second
+
 const (
 	StringDefault              = "unknown"
 	NetConnectionIndexIpFamily = 0 // ipv4/ipv6
