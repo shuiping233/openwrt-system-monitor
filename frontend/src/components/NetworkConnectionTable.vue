@@ -1189,7 +1189,7 @@ const getConnectionSortIcon = (columnId: string): string => {
           <div class="flex items-center gap-2 text-sm">
             <span class="text-slate-400">流量统计起始时间:</span>
             <span class="text-slate-300 font-mono">{{ formatCaptureStartTime(aggregationData?.capture_start_at)
-              }}</span>
+            }}</span>
           </div>
           <!-- 全局搜索框（居右） -->
           <div class="relative">
@@ -1432,12 +1432,17 @@ const getConnectionSortIcon = (columnId: string): string => {
                     </span>
                   </div>
                   <!-- 列过滤器 -->
-                  <div v-if="header.column.getCanFilter()" class="mt-1 flex justify-center">
+                  <div v-if="header.column.getCanFilter()" class="mt-1 flex justify-center relative">
                     <input :value="header.column.getFilterValue() ?? ''"
                       @input="e => header.column.setFilterValue((e.target as HTMLInputElement).value)"
                       :placeholder="`过滤 ${header.column.columnDef.header as string}...`"
-                      class="bg-slate-900 border border-slate-600 text-xs px-1 py-0.5 rounded w-full max-w-[calc(70%-8px)] text-slate-200 outline-none"
+                      class="bg-slate-900 border border-slate-600 text-xs px-1 py-0.5 pr-6 rounded w-full max-w-[calc(70%-8px)] text-slate-200 outline-none"
                       @click.stop />
+                    <button v-if="header.column.getFilterValue()" @click="header.column.setFilterValue('')"
+                      class="absolute right-[20%] top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs w-4 h-4 flex items-center justify-center rounded hover:bg-slate-700 transition-colors"
+                      title="清空搜索" @click.stop>
+                      ×
+                    </button>
                   </div>
                 </th>
               </tr>
