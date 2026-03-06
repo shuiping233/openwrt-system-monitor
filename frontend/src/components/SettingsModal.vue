@@ -71,11 +71,11 @@ watch(() => props.isOpen, (newVal) => {
       @click="emit('update:isOpen', false)">
       <!-- 模态框主体 -->
       <div
-        class="bg-slate-800 rounded-xl border border-slate-700 w-full max-w-lg shadow-2xl relative transform transition-all"
+        class="bg-slate-800 rounded-xl border border-slate-700 w-full max-w-lg shadow-2xl relative transform transition-all max-h-[70vh] flex flex-col"
         @click.stop>
 
         <!-- 头部: 标题 + 关闭按钮 (右上角 X) -->
-        <div class="flex justify-between items-center px-6 py-4 border-b border-slate-700">
+        <div class="flex justify-between items-center px-6 py-4 border-b border-slate-700 shrink-0">
           <h2 class="text-xl font-bold text-white">系统设置</h2>
           <button @click="emit('update:isOpen', false)"
             class="text-slate-400 hover:text-white transition-colors p-1 rounded hover:bg-slate-700" title="关闭 (Esc)">
@@ -85,8 +85,8 @@ watch(() => props.isOpen, (newVal) => {
           </button>
         </div>
 
-        <!-- 内容区域 -->
-        <div class="px-6 py-6 space-y-6">
+        <!-- 内容区域 (可滚动) -->
+        <div class="px-6 py-6 space-y-6 overflow-y-auto">
 
           <!-- 分类 1: 历史数据监控 -->
           <div>
@@ -100,8 +100,7 @@ watch(() => props.isOpen, (newVal) => {
               <!-- 配置 : 启用数据保存功能 -->
               <div class="flex justify-between items-center">
                 <label class="text-slate-300 text-sm">启用历史图表数据记录</label>
-                <button type="button"
-                  @click="toggleMetricRecord"
+                <button type="button" @click="toggleMetricRecord"
                   class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
                   :class="settings.enable_metric_record ? 'bg-blue-600' : 'bg-slate-600'">
                   <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
@@ -113,8 +112,8 @@ watch(() => props.isOpen, (newVal) => {
                 <label class="text-sm" :class="settings.enable_metric_record ? 'text-slate-300' : 'text-slate-500'">
                   数据保留天数
                 </label>
-                <input type="number" min="1" max="365" :value="settings.retention_days"
-                  @change="updateRetentionDays" :disabled="!settings.enable_metric_record"
+                <input type="number" min="1" max="365" :value="settings.retention_days" @change="updateRetentionDays"
+                  :disabled="!settings.enable_metric_record"
                   class="border rounded px-3 py-1.5 w-24 outline-none transition-colors" :class="settings.enable_metric_record
                     ? 'bg-slate-900 border-slate-600 text-white focus:border-blue-500'
                     : 'bg-slate-800 border-slate-700 text-slate-500 cursor-not-allowed'
@@ -199,8 +198,7 @@ watch(() => props.isOpen, (newVal) => {
               <!-- 配置 : 启用后台停止 -->
               <div class="flex justify-between items-center">
                 <label class="text-slate-300 text-sm">后台自动停止刷新</label>
-                <button type="button"
-                  @click="handleSave('enable_background_stop', !settings.enable_background_stop)"
+                <button type="button" @click="handleSave('enable_background_stop', !settings.enable_background_stop)"
                   class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
                   :class="settings.enable_background_stop ? 'bg-orange-600' : 'bg-slate-600'">
                   <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
@@ -236,7 +234,7 @@ watch(() => props.isOpen, (newVal) => {
         </div>
 
         <!-- 底部: 退出按钮 (右下角) -->
-        <div class="px-6 py-4 border-t border-slate-700 flex justify-end bg-slate-800/50 rounded-b-xl">
+        <div class="px-6 py-4 border-t border-slate-700 flex justify-end bg-slate-800/50 rounded-b-xl flex-shrink-0">
           <button @click="emit('update:isOpen', false)"
             class="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors text-sm font-medium">
             退出
