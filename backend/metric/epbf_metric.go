@@ -5,7 +5,6 @@ package metric
 import (
 	"context"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"log"
 	"net/netip"
@@ -37,6 +36,16 @@ type IPMetrics struct {
 	// 累计总量
 	TotalUpload   uint64
 	TotalDownload uint64
+}
+
+type IpStatus struct {
+	LastIncomingBytes uint64    // 上次统计时的总入向流量
+	LastOutgoingBytes uint64    // 上次统计时的总出向流量
+	LastSeen          time.Time // 上次统计的精确时间戳
+
+	// 平滑后的速率（用于输出）
+	SmoothIncomingRate float64
+	SmoothOutgoingRate float64
 }
 
 type EbpfNetTrafficService struct {
@@ -112,111 +121,77 @@ func (svc *EbpfNetTrafficService) InitEbpfInterfaceDevice(targetInterface string
 
 func (svc *EbpfNetTrafficService) frame(
 	objs *bpf.BpfObjects,
-	keyExpiredTime time.Duration,
 	lastSnapshots map[bpf.BpfFlowKey]uint64,
 ) {
 	if !isCapturing(objs) {
 		return
 	}
 
-	// 1. 基础清理与时间计算
-	if len(lastSnapshots) > 100000 {
-		clear(lastSnapshots)
-	}
-
 	now := time.Now()
-	if svc.lastFrameTime.IsZero() {
-		svc.lastFrameTime = now.Add(-1 * time.Second)
+	// 计算采样间隔 dt
+	dt := now.Sub(svc.lastFrameTime).Seconds()
+	if dt <= 0 {
+		dt = 1.0
 	}
-	duration := now.Sub(svc.lastFrameTime).Seconds()
-	svc.lastFrameTime = now
 
-	svc.mutex.Lock()
-	defer svc.mutex.Unlock()
-
-	// 2. 活跃状态检查
+	// 1. 活跃状态检查：如果太久没请求，停止抓取并清理（保持不变，作为安全阀）
 	lastUnix := atomic.LoadInt64(&svc.lastRequestTimeUnix)
-	if time.Since(time.Unix(0, lastUnix)) > keyExpiredTime {
-		stopCapture(objs)
-		clearFlowMap(objs.FlowMap)
-		clear(svc.metricsMap)
-		clear(lastSnapshots)
+	if time.Since(time.Unix(0, lastUnix)) > svc.keyExpiredTime {
+		svc.shutdownCapture(objs, lastSnapshots)
 		return
 	}
 
+	numCPU, _ := ebpf.PossibleCPU()
+	var (
+		batchSize = EbpfBatchLookupSize
+		keys      = make([]bpf.BpfFlowKey, batchSize)
+		vals      = make([]bpf.BpfFlowStats, batchSize*numCPU)
+		cursor    ebpf.MapBatchCursor
+	)
+
+	// 重置本轮瞬时速率
+	svc.mutex.Lock()
 	for _, m := range svc.metricsMap {
 		m.UploadRate = 0
 		m.DownloadRate = 0
 	}
 
-	numCPU, err := ebpf.PossibleCPU()
-	if err != nil {
-		numCPU = runtime.NumCPU() // 备选方案
-	}
-
-	// 3. BatchLookup 初始化
-	// 根据你的函数签名，不需要 prevKey
-	var (
-		batchSize = EbpfBatchLookupSize
-		keys      = make([]bpf.BpfFlowKey, EbpfBatchLookupSize)
-		// 关键：改用一维切片，总大小为 batchSize * numCPU
-		vals   = make([]bpf.BpfFlowStats, EbpfBatchLookupSize*numCPU)
-		cursor ebpf.MapBatchCursor
-	)
-
-	nowKtime := getKtimeNS()
-	timeout := uint64(keyExpiredTime.Nanoseconds())
-
+	// 2. 迭代 eBPF Map 进行采样
 	for {
-		// 传入展平的一维 vals
 		count, err := objs.FlowMap.BatchLookup(&cursor, keys, vals, nil)
 
 		for i := 0; i < count; i++ {
 			key := keys[i]
-
-			// 计算当前 key 在一维数组中对应的 CPU 数据起始索引
-			// 每一个 key 占据 numCPU 个连续的 Stats
-			start := i * numCPU
-			end := start + numCPU
-			cpuVals := vals[start:end]
-
 			var totalBytes uint64
-			var maxLastSeen uint64
-			for _, v := range cpuVals {
-				totalBytes += v.Bytes
-				if v.LastSeen > maxLastSeen {
-					maxLastSeen = v.LastSeen
-				}
+			// 聚合所有 CPU 的字节数
+			for cpu := 0; cpu < numCPU; cpu++ {
+				totalBytes += vals[i*numCPU+cpu].Bytes
 			}
 
-			// ... 老化与 Delta 计算逻辑 (保持不变) ...
-			if nowKtime-maxLastSeen > timeout {
-				continue
-			}
-			currentBytes := totalBytes
+			// 计算增量 (Delta)
+			lastBytes := lastSnapshots[key] // map 取不到返回 0，逻辑自然成立
 			delta := uint64(0)
-			if lastBytes, ok := lastSnapshots[key]; ok {
-				if currentBytes >= lastBytes {
-					delta = currentBytes - lastBytes
-				}
-			} else {
-				delta = currentBytes
+			if totalBytes > lastBytes {
+				delta = totalBytes - lastBytes
 			}
-			lastSnapshots[key] = currentBytes
 
-			svc.trafficAggregateWithDuration(key, delta, duration)
-		}
-		if err != nil {
-			if errors.Is(err, ebpf.ErrKeyNotExist) {
-				break
+			// 更新快照
+			lastSnapshots[key] = totalBytes
+
+			// 只有在有流量时才进行聚合计算，减少 parseToAddr 等操作的开销
+			if delta > 0 {
+				svc.trafficAggregateWithDuration(key, delta, dt)
 			}
-			log.Printf("BatchLookup error: %v", err)
-			break
 		}
-		if count < batchSize {
+
+		if err != nil || count < batchSize {
 			break
 		}
 	}
+	svc.mutex.Unlock()
+
+	// 3. 更新时间轴并应用平滑
+	svc.lastFrameTime = now
 	svc.applySmoothing()
 }
 
@@ -231,6 +206,8 @@ func (svc *EbpfNetTrafficService) Run(ctx context.Context) {
 	objs := svc.objs
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
+	gcTicker := time.NewTicker(5 * time.Second)
+	defer gcTicker.Stop()
 
 	keyExpiredTime := svc.keyExpiredTime
 	lastSnapshots := make(map[bpf.BpfFlowKey]uint64)
@@ -252,11 +229,23 @@ func (svc *EbpfNetTrafficService) Run(ctx context.Context) {
 		case <-ticker.C:
 			svc.frame(
 				objs,
-				keyExpiredTime,
 				lastSnapshots,
 			)
+		case <-gcTicker.C:
+			// 异步执行清理
+			go svc.cleanupExpiredFlows(objs, keyExpiredTime, lastSnapshots)
+
 		}
 	}
+}
+
+func (svc *EbpfNetTrafficService) shutdownCapture(objs *bpf.BpfObjects, lastSnapshots map[bpf.BpfFlowKey]uint64) {
+	stopCapture(objs)
+	clearFlowMap(objs.FlowMap)
+	svc.mutex.Lock()
+	clear(svc.metricsMap)
+	svc.mutex.Unlock()
+	clear(lastSnapshots)
 }
 
 func (svc *EbpfNetTrafficService) ActiveSignal() {
@@ -405,6 +394,64 @@ func (svc *EbpfNetTrafficService) parseToAddr(addr [4]uint32, family uint8) neti
 	binary.NativeEndian.PutUint32(b[8:12], addr[2])
 	binary.NativeEndian.PutUint32(b[12:16], addr[3])
 	return netip.AddrFrom16(b)
+}
+
+func (svc *EbpfNetTrafficService) cleanupExpiredFlows(
+	objs *bpf.BpfObjects,
+	timeout time.Duration,
+	lastSnapshots map[bpf.BpfFlowKey]uint64,
+) {
+	nowKtime := getKtimeNS()
+	timeoutNS := uint64(timeout.Nanoseconds())
+
+	var (
+		batchSize = EbpfBatchLookupSize
+		keys      = make([]bpf.BpfFlowKey, EbpfBatchLookupSize)
+		// 清理时我们只关心 LastSeen，可以减轻读取压力
+		vals         = make([]bpf.BpfFlowStats, EbpfBatchLookupSize*runtime.NumCPU())
+		cursor       ebpf.MapBatchCursor
+		keysToDelete []bpf.BpfFlowKey
+	)
+
+	for {
+		count, err := objs.FlowMap.BatchLookup(&cursor, keys, vals, nil)
+
+		for i := 0; i < count; i++ {
+			key := keys[i]
+			// 找到该 Key 在所有 CPU 上的最大 LastSeen
+			var maxLastSeen uint64
+			for cpu := 0; cpu < runtime.NumCPU(); cpu++ {
+				if vals[i*runtime.NumCPU()+cpu].LastSeen > maxLastSeen {
+					maxLastSeen = vals[i*runtime.NumCPU()+cpu].LastSeen
+				}
+			}
+
+			// 如果超过过期时间，加入待删除队列
+			if nowKtime-maxLastSeen > timeoutNS {
+				keysToDelete = append(keysToDelete, key)
+			}
+		}
+
+		if err != nil || count < batchSize {
+			break
+		}
+	}
+
+	if len(keysToDelete) > 0 {
+		// 1. 从内核 Map 批量删除
+		_, _ = objs.FlowMap.BatchDelete(keysToDelete, nil)
+
+		// 2. 从 Go 内存快照删除 (由于 lastSnapshots 不是并发安全的，需要加锁或交给下一帧处理)
+		// 这里建议在 svc.mutex 保护下清理
+		svc.mutex.Lock()
+		for _, k := range keysToDelete {
+			delete(lastSnapshots, k)
+			// 如果你觉得 metricsMap 里的 IP 也太久没见了，也可以顺便清理
+		}
+		svc.mutex.Unlock()
+
+		log.Printf("[GC] Cleaned up %d expired flows", len(keysToDelete))
+	}
 }
 
 func (svc *EbpfNetTrafficService) refreshInterfaceInfo() {
