@@ -32,7 +32,7 @@ export const defaultSettings: Settings = {
   dns_batch_size: 50,
   dns_poll_interval: 3, // seconds
   enable_background_stop: true,
-  background_stop_delay: 120, // seconds
+  background_stop_delay: 60, // seconds
 };
 
 const settings = reactive<Settings>({ ...defaultSettings });
