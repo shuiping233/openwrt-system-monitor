@@ -1451,7 +1451,7 @@ const getConnectionSortIcon = (columnId: string): string => {
             <!-- 自定义输入框 -->
             <div class="flex items-center gap-1">
               <input v-model="customPageSize" type="number" min="1" placeholder="自定义"
-                class="w-16 text-xs px-2 py-1 rounded bg-slate-900 border border-slate-600 text-white outline-none focus:border-blue-400 text-center"
+                class="w-18 text-xs px-2 py-1 rounded text-left bg-slate-900 border border-slate-600 text-white outline-none focus:border-blue-400"
                 :class="{ 'border-blue-400': isCustomPageSize }" @change="handleCustomPageSizeChange"
                 @keyup.enter="handleCustomPageSizeChange" />
               <span class="text-xs text-slate-400">条</span>
