@@ -1217,7 +1217,7 @@ const getConnectionSortIcon = (columnId: string): string => {
           <div class="flex items-center gap-2 text-xs sm:text-sm flex-shrink-0 md:flex-1 md:justify-center">
             <span class="text-slate-400">流量统计起始时间:</span>
             <span class="text-slate-300 font-mono">{{ formatCaptureStartTime(aggregationData?.capture_start_at)
-            }}</span>
+              }}</span>
           </div>
           <!-- 全局搜索框（右侧） -->
           <div class="relative w-full md:w-auto">
@@ -1553,7 +1553,8 @@ const getConnectionSortIcon = (columnId: string): string => {
                 <div class="flex items-center gap-2 bg-slate-900 border border-slate-600 rounded px-3 py-1">
                   <span class="text-xs text-slate-400">跳转至</span>
                   <input v-model="pageInputValue" type="number"
-                    class="flex-1 bg-transparent text-xs text-center text-blue-400 outline-none" @change="jumpToPage" />
+                    class="flex-1 bg-transparent text-xs text-center text-slate-300 outline-none"
+                    @change="jumpToPage" />
                   <span class="text-xs text-slate-400">页</span>
                 </div>
                 <div class="flex gap-2">
