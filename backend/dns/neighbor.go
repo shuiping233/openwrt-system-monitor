@@ -27,6 +27,7 @@ func NewNeighborService() *NeighborService {
 	}
 	ns.ipToMac.Store(make(map[string]string))
 	ns.macToV4.Store(make(map[string]string))
+	ns.Reload()
 	return ns
 }
 
@@ -90,7 +91,7 @@ func (ns *NeighborService) Reload() error {
 	}
 
 	for _, n := range append(v4, v6...) {
-		if n.State&(netlink.NUD_REACHABLE|netlink.NUD_STALE|netlink.NUD_DELAY) != 0 {
+		if n.State&(netlink.NUD_INCOMPLETE|netlink.NUD_FAILED|netlink.NUD_NONE) == 0 {
 			ip := n.IP.String()
 			mac := n.HardwareAddr.String()
 			if mac == "" {
