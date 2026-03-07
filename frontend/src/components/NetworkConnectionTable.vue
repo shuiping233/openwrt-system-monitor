@@ -1484,7 +1484,7 @@ const getConnectionSortIcon = (columnId: string): string => {
       </div>
 
       <div
-        class="px-4 py-4 hidden [@media(min-width:451px)]:flex [@media(max-width:950px)]:flex items-start justify-between gap-8">
+        class="px-4 py-4 hidden [@media(min-width:451px)]:flex [@media(min-width:951px)]:hidden items-start justify-between gap-8">
         <div class="flex flex-col gap-3 flex-1 max-w-[240px]">
           <span class="text-xs text-slate-400 font-medium text-left">每页显示：</span>
           <div class="flex flex-col gap-2">
