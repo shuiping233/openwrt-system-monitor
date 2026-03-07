@@ -1409,179 +1409,293 @@ const getConnectionSortIcon = (columnId: string): string => {
     </div>
 
     <!-- 2. 连接列表 -->
-    <div class="border-t border-slate-700 bg-slate-800/50">
+    <div>
+      <!-- 连接列表折叠栏 -->
+      <div @click="toggleMainAccordion('connectionList')"
+        class="py-2.5 border-b border-slate-700 mb-5 cursor-pointer select-none flex justify-between items-center group">
+        <div class="flex items-center gap-4">
+          <h3 class="text-lg font-semibold text-slate-200 group-hover:text-white">连接列表</h3>
+        </div>
+        <span class="text-slate-500 transition-transform duration-300"
+          :class="{ 'rotate-180': uiState.accordions.connectionList }">▼</span>
+      </div>
 
-      <div class="px-4 py-4 flex flex-col gap-6 [@media(min-width:451px)]:hidden">
-        <div class="flex flex-col gap-3">
-          <span class="text-xs text-slate-400">每页显示：</span>
+      <!-- 连接列表内容 -->
+      <div v-show="uiState.accordions.connectionList"
+        class="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+        <!-- DNS 查询开关 + 搜索框 -->
+        <div
+          class="px-4 py-3 border-b border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <!-- DNS 查询开关 -->
+          <label class="flex items-center gap-2 cursor-pointer flex-shrink-0">
+            <input type="checkbox" v-model="enableConnectionsDns"
+              class="w-4 h-4 rounded border-slate-600 text-blue-500 focus:ring-blue-500 bg-slate-700" />
+            <span class="text-sm text-slate-300">启用 DNS 查询</span>
+            <span v-if="connectionsQuerying" class="text-xs text-blue-400 animate-pulse">查询中...</span>
+          </label>
+          <!-- 全局搜索框 -->
+          <div class="relative w-full sm:w-auto">
+            <input v-model="globalFilter" placeholder="全局搜索..."
+              class="bg-slate-900 border border-slate-600 text-white text-xs px-3 py-1.5 pr-8 rounded w-full sm:w-56 min-w-[8rem] outline-none focus:border-blue-400" />
+            <button v-if="globalFilter" @click="globalFilter = ''"
+              class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs w-4 h-4 flex items-center justify-center rounded hover:bg-slate-700 transition-colors"
+              title="清空搜索">
+              ×
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-center border-collapse">
+            <thead class="bg-slate-700/50 text-slate-300">
+              <tr>
+                <th v-for="header in table.getHeaderGroups()[0].headers" :key="header.id"
+                  @click="header.column.getCanSort() ? header.column.toggleSorting(undefined, header.column.getIsSorted() === false) : null"
+                  class="px-3 py-3 font-medium text-center whitespace-nowrap" :class="{
+                    'cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors': header.column.getCanSort(),
+                  }">
+                  <div class="flex items-center justify-center gap-1">
+                    <FlexRender :render="header.column.columnDef.header" :props="header.getContext()" />
+                    <span v-if="header.column.getCanSort()" class="text-slate-400">
+                      {{ getConnectionSortIcon(header.column.id) }}
+                    </span>
+                  </div>
+                  <!-- 列过滤器 -->
+                  <div v-if="header.column.getCanFilter()" class="mt-1 flex justify-center">
+                    <div class="relative min-w-[60px]">
+                      <input :value="header.column.getFilterValue() ?? ''"
+                        @input="e => header.column.setFilterValue((e.target as HTMLInputElement).value)"
+                        :placeholder="`过滤 ${header.column.columnDef.header as string}...`"
+                        class="bg-slate-900 border border-slate-600 text-xs px-1 py-0.5 pr-6 rounded w-full min-w-[60px] text-slate-200 outline-none"
+                        @click.stop />
+
+                      <button v-if="header.column.getFilterValue()" @click.stop="header.column.setFilterValue('')"
+                        class="absolute right-1 top-1/2 -translate-y-1/2 text-xs w-4 h-4 flex items-center justify-center rounded text-slate-500 hover:text-slate-300 hover:bg-slate-700 transition-colors"
+                        title="清空搜索">
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-700">
+              <tr v-for="row in table.getPaginationRowModel().rows" :key="row.id"
+                class="hover:bg-slate-700/30 transition-colors">
+                <td v-for="cell in row.getVisibleCells()" :key="cell.id" class="px-3 py-2 text-center">
+                  <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
+                </td>
+              </tr>
+              <tr v-if="table.getPaginationRowModel().rows.length === 0">
+                <td colspan="7" class="px-5 py-8 text-center text-slate-500">暂无匹配数据</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 分页控件 -->
+        <!-- 手机端（<= 500px）：完全竖向分组排列 -->
+        <div class="px-4 py-3 border-t border-slate-700 sm:hidden flex flex-col gap-4">
+          <!-- 左侧：分页大小选择器 -->
           <div class="flex flex-col gap-2">
-            <div class="flex gap-2">
-              <button v-for="size in [20, 50]" :key="size" @click="switchToPresetSize(size)"
-                class="flex-1 text-xs py-2 rounded border border-slate-600 transition-colors"
-                :class="[!isCustomPageSize && pageSize === size ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-700 text-slate-300']">
-                {{ size }} 条
-              </button>
+            <span class="text-xs text-slate-400">每页显示：</span>
+            <div class="flex flex-col gap-2">
+              <!-- 第一组：20, 50 -->
+              <div class="flex items-center gap-2">
+                <button v-for="size in [20, 50]" :key="size" @click="switchToPresetSize(size)"
+                  class="text-xs px-3 py-1.5 rounded transition-colors flex-1" :class="{
+                    'bg-blue-600 text-white': !isCustomPageSize && pageSize === size,
+                    'bg-slate-700 text-slate-300 hover:bg-slate-600': isCustomPageSize || pageSize !== size
+                  }">
+                  {{ size }}
+                </button>
+              </div>
+              <!-- 第二组：100, 500 -->
+              <div class="flex items-center gap-2">
+                <button v-for="size in [100, 500]" :key="size" @click="switchToPresetSize(size)"
+                  class="text-xs px-3 py-1.5 rounded transition-colors flex-1" :class="{
+                    'bg-blue-600 text-white': !isCustomPageSize && pageSize === size,
+                    'bg-slate-700 text-slate-300 hover:bg-slate-600': isCustomPageSize || pageSize !== size
+                  }">
+                  {{ size }}
+                </button>
+              </div>
+              <!-- 第三组：1000 + 自定义 -->
+              <div class="flex items-center gap-2">
+                <button @click="switchToPresetSize(1000)"
+                  class="text-xs px-3 py-1.5 rounded transition-colors flex-1" :class="{
+                    'bg-blue-600 text-white': !isCustomPageSize && pageSize === 1000,
+                    'bg-slate-700 text-slate-300 hover:bg-slate-600': isCustomPageSize || pageSize !== 1000
+                  }">
+                  1000
+                </button>
+                <div class="flex items-center gap-1 flex-1">
+                  <input v-model="customPageSize" type="number" min="1" placeholder="自定义"
+                    class="w-full text-xs px-2 py-1.5 rounded text-left bg-slate-900 border border-slate-600 text-white outline-none focus:border-blue-400"
+                    :class="{ 'border-blue-400': isCustomPageSize }" @change="handleCustomPageSizeChange"
+                    @keyup.enter="handleCustomPageSizeChange" />
+                  <span class="text-xs text-slate-400">条</span>
+                </div>
+              </div>
             </div>
-            <div class="flex gap-2">
-              <button v-for="size in [100, 500]" :key="size" @click="switchToPresetSize(size)"
-                class="flex-1 text-xs py-2 rounded border border-slate-600 transition-colors"
-                :class="[!isCustomPageSize && pageSize === size ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-700 text-slate-300']">
-                {{ size }} 条
-              </button>
-            </div>
-            <div class="flex gap-2 items-center">
-              <button @click="switchToPresetSize(1000)"
-                class="flex-1 text-xs py-2 rounded border border-slate-600 transition-colors"
-                :class="[!isCustomPageSize && pageSize === 1000 ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-700 text-slate-300']">
-                1000 条
-              </button>
-              <div class="flex-1 flex items-center gap-1 bg-slate-900 border border-slate-600 rounded px-2">
-                <input v-model="customPageSize" type="number" placeholder="自定义"
-                  class="w-full bg-transparent text-xs py-2 text-white outline-none"
-                  @change="handleCustomPageSizeChange" />
-                <span class="text-[10px] text-slate-500 whitespace-nowrap">条</span>
+          </div>
+
+          <!-- 右侧：页码导航 -->
+          <div class="flex flex-col gap-2">
+            <span class="text-xs text-slate-400 text-right">
+              共 {{ table.getPageCount() }} 页，{{ table.getFilteredRowModel().rows.length }} 条记录
+            </span>
+            <div class="flex flex-col gap-2">
+              <!-- 第一组：第一页 + 上一页 -->
+              <div class="flex items-center gap-2">
+                <button @click="table.setPageIndex(0)" :disabled="!table.getCanPreviousPage()"
+                  class="text-xs px-3 py-1.5 rounded bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-1">
+                  第一页
+                </button>
+                <button @click="table.previousPage()" :disabled="!table.getCanPreviousPage()"
+                  class="text-xs px-3 py-1.5 rounded bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-1">
+                  上一页
+                </button>
+              </div>
+              <!-- 第二组：页码输入框 -->
+              <div class="flex items-center justify-end gap-2">
+                <input v-model="pageInputValue" type="number" min="1" :max="table.getPageCount() || 1"
+                  class="w-20 text-xs px-2 py-1.5 rounded bg-slate-900 border border-slate-600 text-white outline-none focus:border-blue-400 text-center"
+                  @change="jumpToPage" @keyup.enter="jumpToPage" />
+                <span class="text-xs text-slate-400 whitespace-nowrap">/ {{ table.getPageCount() || 1 }}</span>
+              </div>
+              <!-- 第三组：下一页 + 最后一页 -->
+              <div class="flex items-center gap-2">
+                <button @click="table.nextPage()" :disabled="!table.getCanNextPage()"
+                  class="text-xs px-3 py-1.5 rounded bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-1">
+                  下一页
+                </button>
+                <button @click="table.setPageIndex(table.getPageCount() - 1)" :disabled="!table.getCanNextPage()"
+                  class="text-xs px-3 py-1.5 rounded bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-1">
+                  最后一页
+                </button>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="flex flex-col gap-3">
-          <div class="flex justify-between items-center">
-            <span class="text-xs text-slate-400">第 {{ table.getState().pagination.pageIndex + 1 }} 页</span>
-            <span class="text-xs text-slate-500">共 {{ table.getPageCount() }} 页 / {{
-              table.getFilteredRowModel().rows.length
-              }} 条</span>
-          </div>
+        <!-- 平板端（501px - 1023px）：左右分栏，左侧分页按钮，右侧页码竖向排列 -->
+        <div class="px-4 py-3 border-t border-slate-700 hidden sm:flex lg:hidden items-start justify-between gap-4">
+          <!-- 左侧：分页大小选择器 -->
           <div class="flex flex-col gap-2">
-            <div class="flex gap-2">
+            <span class="text-xs text-slate-400">每页显示：</span>
+            <div class="flex flex-wrap gap-2">
+              <button v-for="size in [20, 50, 100, 500, 1000]" :key="size" @click="switchToPresetSize(size)"
+                class="text-xs px-3 py-1.5 rounded transition-colors" :class="{
+                  'bg-blue-600 text-white': !isCustomPageSize && pageSize === size,
+                  'bg-slate-700 text-slate-300 hover:bg-slate-600': isCustomPageSize || pageSize !== size
+                }">
+                {{ size }}
+              </button>
+              <div class="flex items-center gap-1">
+                <input v-model="customPageSize" type="number" min="1" placeholder="自定义"
+                  class="w-16 text-xs px-2 py-1.5 rounded text-left bg-slate-900 border border-slate-600 text-white outline-none focus:border-blue-400"
+                  :class="{ 'border-blue-400': isCustomPageSize }" @change="handleCustomPageSizeChange"
+                  @keyup.enter="handleCustomPageSizeChange" />
+                <span class="text-xs text-slate-400">条</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 右侧：页码导航（竖向两组排列） -->
+          <div class="flex flex-col items-end gap-2">
+            <span class="text-xs text-slate-400">
+              共 {{ table.getPageCount() }} 页，{{ table.getFilteredRowModel().rows.length }} 条记录
+            </span>
+            <div class="flex flex-col gap-2">
+              <!-- 第一组：第一页、上一页 -->
+              <div class="flex items-center gap-2">
+                <button @click="table.setPageIndex(0)" :disabled="!table.getCanPreviousPage()"
+                  class="text-xs px-3 py-1.5 rounded bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                  第一页
+                </button>
+                <button @click="table.previousPage()" :disabled="!table.getCanPreviousPage()"
+                  class="text-xs px-3 py-1.5 rounded bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                  上一页
+                </button>
+              </div>
+              <!-- 页码输入 -->
+              <div class="flex items-center justify-end gap-2">
+                <input v-model="pageInputValue" type="number" min="1" :max="table.getPageCount() || 1"
+                  class="w-14 text-xs px-2 py-1.5 rounded bg-slate-900 border border-slate-600 text-white outline-none focus:border-blue-400 text-center"
+                  @change="jumpToPage" @keyup.enter="jumpToPage" />
+                <span class="text-xs text-slate-400 whitespace-nowrap">/ {{ table.getPageCount() || 1 }}</span>
+              </div>
+              <!-- 第二组：下一页、最后一页 -->
+              <div class="flex items-center gap-2">
+                <button @click="table.nextPage()" :disabled="!table.getCanNextPage()"
+                  class="text-xs px-3 py-1.5 rounded bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                  下一页
+                </button>
+                <button @click="table.setPageIndex(table.getPageCount() - 1)" :disabled="!table.getCanNextPage()"
+                  class="text-xs px-3 py-1.5 rounded bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                  最后一页
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PC端（>= 1024px）：横向一行排列 -->
+        <div class="px-4 py-3 border-t border-slate-700 hidden lg:flex flex-wrap items-center justify-between gap-3">
+          <!-- 左侧：分页大小选择器 -->
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-400">每页显示：</span>
+            <!-- 预设分页大小按钮 -->
+            <button v-for="size in pageSizeOptions" :key="size" @click="switchToPresetSize(size)"
+              class="text-xs px-2 py-1 rounded transition-colors" :class="{
+                'bg-blue-600 text-white': !isCustomPageSize && pageSize === size,
+                'bg-slate-700 text-slate-300 hover:bg-slate-600': isCustomPageSize || pageSize !== size
+              }">
+              {{ size }}
+            </button>
+            <!-- 自定义输入框 -->
+            <div class="flex items-center gap-1">
+              <input v-model="customPageSize" type="number" min="1" placeholder="自定义"
+                class="w-18 text-xs px-2 py-1 rounded text-left bg-slate-900 border border-slate-600 text-white outline-none focus:border-blue-400"
+                :class="{ 'border-blue-400': isCustomPageSize }" @change="handleCustomPageSizeChange"
+                @keyup.enter="handleCustomPageSizeChange" />
+              <span class="text-xs text-slate-400">条</span>
+            </div>
+          </div>
+
+          <!-- 右侧：页码导航 -->
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-slate-400">
+              共 {{ table.getPageCount() }} 页，{{ table.getFilteredRowModel().rows.length }} 条记录
+            </span>
+            <div class="flex items-center gap-1">
               <button @click="table.setPageIndex(0)" :disabled="!table.getCanPreviousPage()"
-                class="flex-1 text-xs py-2 rounded bg-slate-700 text-slate-300 disabled:opacity-40 border border-slate-600">
-                首页
+                class="text-xs px-3 py-1 rounded bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                第一页
               </button>
               <button @click="table.previousPage()" :disabled="!table.getCanPreviousPage()"
-                class="flex-1 text-xs py-2 rounded bg-slate-700 text-slate-300 disabled:opacity-40 border border-slate-600">
+                class="text-xs px-3 py-1 rounded bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                 上一页
               </button>
-            </div>
-            <div class="flex items-center gap-2 bg-slate-900 border border-slate-600 rounded px-3 py-1">
-              <span class="text-xs text-slate-400">跳转至</span>
-              <input v-model="pageInputValue" type="number"
-                class="flex-1 bg-transparent text-xs text-center text-blue-400 outline-none" @change="jumpToPage" />
-              <span class="text-xs text-slate-400">页</span>
-            </div>
-            <div class="flex gap-2">
+              <div class="flex items-center gap-1 px-2">
+                <input v-model="pageInputValue" type="number" min="1" :max="table.getPageCount() || 1"
+                  class="w-15 text-xs px-2 py-1 rounded bg-slate-900 border border-slate-600 text-white outline-none focus:border-blue-400 text-left"
+                  @change="jumpToPage" @keyup.enter="jumpToPage" />
+                <span class="text-xs text-slate-400">/ {{ table.getPageCount() || 1 }}</span>
+              </div>
               <button @click="table.nextPage()" :disabled="!table.getCanNextPage()"
-                class="flex-1 text-xs py-2 rounded bg-slate-700 text-slate-300 disabled:opacity-40 border border-slate-600">
+                class="text-xs px-3 py-1 rounded bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                 下一页
               </button>
               <button @click="table.setPageIndex(table.getPageCount() - 1)" :disabled="!table.getCanNextPage()"
-                class="flex-1 text-xs py-2 rounded bg-slate-700 text-slate-300 disabled:opacity-40 border border-slate-600">
-                末页
+                class="text-xs px-3 py-1 rounded bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                最后一页
               </button>
             </div>
-          </div>
-        </div>
-      </div>
-
-      <div
-        class="px-4 py-4 hidden [@media(min-width:451px)]:flex [@media(min-width:951px)]:hidden items-start justify-between gap-8">
-        <div class="flex flex-col gap-3 flex-1 max-w-[240px]">
-          <span class="text-xs text-slate-400 font-medium text-left">每页显示：</span>
-          <div class="flex flex-col gap-2">
-            <div class="flex gap-2">
-              <button v-for="size in [20, 50]" :key="size" @click="switchToPresetSize(size)"
-                class="flex-1 text-xs py-1.5 rounded border border-slate-600 transition-colors"
-                :class="[!isCustomPageSize && pageSize === size ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600']">
-                {{ size }}
-              </button>
-            </div>
-            <div class="flex gap-2">
-              <button v-for="size in [100, 500]" :key="size" @click="switchToPresetSize(size)"
-                class="flex-1 text-xs py-1.5 rounded border border-slate-600 transition-colors"
-                :class="[!isCustomPageSize && pageSize === size ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600']">
-                {{ size }}
-              </button>
-            </div>
-            <div class="flex gap-2">
-              <button @click="switchToPresetSize(1000)"
-                class="flex-1 text-xs py-1.5 rounded border border-slate-600 transition-colors"
-                :class="[!isCustomPageSize && pageSize === 1000 ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600']">
-                1000
-              </button>
-              <input v-model="customPageSize" type="number" placeholder="自定义"
-                class="flex-1 min-w-0 bg-slate-900 border border-slate-600 rounded text-xs px-2 py-1.5 text-white outline-none focus:border-blue-400"
-                @change="handleCustomPageSizeChange" />
-            </div>
-          </div>
-        </div>
-
-        <div class="flex flex-col gap-3 flex-1 max-w-[240px]">
-          <span class="text-xs text-slate-400 font-medium text-right">页码导航：</span>
-          <div class="flex flex-col gap-2">
-            <div class="flex gap-2">
-              <button @click="table.setPageIndex(0)" :disabled="!table.getCanPreviousPage()"
-                class="flex-1 text-xs py-1.5 rounded bg-slate-700 text-slate-300 border border-slate-600 disabled:opacity-40">首页</button>
-              <button @click="table.previousPage()" :disabled="!table.getCanPreviousPage()"
-                class="flex-1 text-xs py-1.5 rounded bg-slate-700 text-slate-300 border border-slate-600 disabled:opacity-40">上页</button>
-            </div>
-            <div class="flex items-center gap-2 px-2 py-1 bg-slate-900 border border-slate-600 rounded">
-              <input v-model="pageInputValue" type="number"
-                class="w-full bg-transparent text-xs text-center text-white outline-none" @change="jumpToPage" />
-              <span class="text-[10px] text-slate-500 whitespace-nowrap">/ {{ table.getPageCount() }}</span>
-            </div>
-            <div class="flex gap-2">
-              <button @click="table.nextPage()" :disabled="!table.getCanNextPage()"
-                class="flex-1 text-xs py-1.5 rounded bg-slate-700 text-slate-300 border border-slate-600 disabled:opacity-40">下页</button>
-              <button @click="table.setPageIndex(table.getPageCount() - 1)" :disabled="!table.getCanNextPage()"
-                class="flex-1 text-xs py-1.5 rounded bg-slate-700 text-slate-300 border border-slate-600 disabled:opacity-40">末页</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="px-4 py-3 hidden [@media(min-width:951px)]:flex flex-wrap items-center justify-between gap-3">
-        <div class="flex items-center gap-2">
-          <span class="text-xs text-slate-400">每页显示：</span>
-          <button v-for="size in pageSizeOptions" :key="size" @click="switchToPresetSize(size)"
-            class="text-xs px-2.5 py-1 rounded border border-slate-600 transition-colors" :class="{
-              'bg-blue-600 border-blue-600 text-white': !isCustomPageSize && pageSize === size,
-              'bg-slate-700 text-slate-300 hover:bg-slate-600': isCustomPageSize || pageSize !== size
-            }">
-            {{ size }}
-          </button>
-          <div class="flex items-center gap-1 ml-1">
-            <input v-model="customPageSize" type="number"
-              class="w-16 text-xs px-2 py-1 rounded bg-slate-900 border border-slate-600 text-white outline-none focus:border-blue-400"
-              @change="handleCustomPageSizeChange" />
-            <span class="text-xs text-slate-400">条</span>
-          </div>
-        </div>
-
-        <div class="flex items-center gap-4">
-          <span class="text-xs text-slate-500 whitespace-nowrap">
-            共 {{ table.getFilteredRowModel().rows.length }} 条记录
-          </span>
-          <div class="flex items-center gap-1">
-            <button @click="table.setPageIndex(0)" :disabled="!table.getCanPreviousPage()"
-              class="text-xs px-2 py-1 rounded bg-slate-700 text-slate-300 disabled:opacity-50 hover:bg-slate-600 border border-slate-600 transition-colors">首页</button>
-            <button @click="table.previousPage()" :disabled="!table.getCanPreviousPage()"
-              class="text-xs px-2 py-1 rounded bg-slate-700 text-slate-300 disabled:opacity-50 hover:bg-slate-600 border border-slate-600 transition-colors">上一页</button>
-
-            <div class="flex items-center gap-1 px-3">
-              <input v-model="pageInputValue" type="number"
-                class="w-12 text-xs px-1 py-1 rounded bg-slate-900 border border-slate-600 text-white text-center outline-none focus:border-blue-400"
-                @change="jumpToPage" />
-              <span class="text-xs text-slate-400">/ {{ table.getPageCount() }}</span>
-            </div>
-
-            <button @click="table.nextPage()" :disabled="!table.getCanNextPage()"
-              class="text-xs px-2 py-1 rounded bg-slate-700 text-slate-300 disabled:opacity-50 hover:bg-slate-600 border border-slate-600 transition-colors">下一页</button>
-            <button @click="table.setPageIndex(table.getPageCount() - 1)" :disabled="!table.getCanNextPage()"
-              class="text-xs px-2 py-1 rounded bg-slate-700 text-slate-300 disabled:opacity-50 hover:bg-slate-600 border border-slate-600 transition-colors">末页</button>
           </div>
         </div>
       </div>
     </div>
-
   </div>
 </template>
