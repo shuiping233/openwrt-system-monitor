@@ -50,13 +50,17 @@ changelog:
     - title: Code refacotoring
       regexp: "^refactor.*"
       order: 2
+    - title: Frontend style
+      regexp: "^style.*"
+      order: 3
+    - title: Documentation
+      regexp: "^docs.*"
+      order: 3
 
   filters:
     exclude:
       - "^test:"
       - "^chore:"
-      - "^style:"
-      - "^docs:"
 
 # release:
 #   disable: true
