@@ -1455,17 +1455,20 @@ const getConnectionSortIcon = (columnId: string): string => {
                     </span>
                   </div>
                   <!-- 列过滤器 -->
-                  <div v-if="header.column.getCanFilter()" class="mt-1 flex justify-center relative">
-                    <input :value="header.column.getFilterValue() ?? ''"
-                      @input="e => header.column.setFilterValue((e.target as HTMLInputElement).value)"
-                      :placeholder="`过滤 ${header.column.columnDef.header as string}...`"
-                      class="bg-slate-900 border border-slate-600 text-xs px-1 py-0.5 pr-6 rounded w-full max-w-[calc(70%-8px)] text-slate-200 outline-none"
-                      @click.stop />
-                    <button v-if="header.column.getFilterValue()" @click="header.column.setFilterValue('')"
-                      class="absolute right-[20%] top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs w-4 h-4 flex items-center justify-center rounded hover:bg-slate-700 transition-colors"
-                      title="清空搜索" @click.stop>
-                      ×
-                    </button>
+                  <div v-if="header.column.getCanFilter()" class="mt-1 flex justify-center">
+                    <div class="relative w-full max-w-[calc(70%-8px)]">
+                      <input :value="header.column.getFilterValue() ?? ''"
+                        @input="e => header.column.setFilterValue((e.target as HTMLInputElement).value)"
+                        :placeholder="`过滤 ${header.column.columnDef.header as string}...`"
+                        class="bg-slate-900 border border-slate-600 text-xs px-1 py-0.5 pr-6 rounded w-full text-slate-200 outline-none"
+                        @click.stop />
+
+                      <button v-if="header.column.getFilterValue()" @click.stop="header.column.setFilterValue('')"
+                        class="absolute right-1 top-1/2 -translate-y-1/2 text-xs w-4 h-4 flex items-center justify-center rounded text-slate-500 hover:text-slate-300 hover:bg-slate-700 transition-colors"
+                        title="清空搜索">
+                        ×
+                      </button>
+                    </div>
                   </div>
                 </th>
               </tr>
