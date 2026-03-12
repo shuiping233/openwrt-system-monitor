@@ -383,7 +383,7 @@ func (svc *EbpfNetTrafficService) GetAggregationTrafficMetric() *model.Aggregati
 
 		result.Details = append(result.Details, model.AggregationTrafficDetails{
 			Ip:              ipStr,
-			IpType:          IpType, // TODO 先写死,因为其他类型的ip流量抓取还没做
+			IpType:          IpType,
 			IpFamily:        ipFamily,
 			Incoming:        incoming,
 			Outgoing:        outgoing,
@@ -391,9 +391,9 @@ func (svc *EbpfNetTrafficService) GetAggregationTrafficMetric() *model.Aggregati
 			TotalIncoming:   totalIncoming,
 			TotalOutgoing:   totalOutgoing,
 			TotalTraffic:    totalTraffic,
-			Tcp:             value.Tcp,
-			Udp:             value.Udp,
-			Other:           value.Other,
+			Tcp:             value.Tcp / 2,
+			Udp:             value.Udp / 2,
+			Other:           value.Other / 2,
 		})
 	}
 	return result
@@ -674,12 +674,6 @@ func IsOtherIp(ip netip.Addr) bool {
 		return true
 	}
 
-	// 3. 链路本地过滤：过滤 fe80:: 和 169.254.x.x
-	// 这些地址不经过三层路由，仅用于二层链路发现
-	if ip.IsLinkLocalUnicast() {
-		return true
-	}
-
 	// 4. 补漏：IPv4 全网广播
 	if ip.Is4() && ip == ipv4Broadcast {
 		return true
@@ -690,6 +684,12 @@ func IsOtherIp(ip netip.Addr) bool {
 func IsIgnoredAddr(ip netip.Addr) bool {
 
 	if !ip.IsValid() || ip.IsUnspecified() || ip.IsLoopback() {
+		return true
+	}
+
+	// 3. 链路本地过滤：过滤 fe80:: 和 169.254.x.x
+	// 这些地址不经过三层路由，仅用于二层链路发现
+	if ip.IsLinkLocalUnicast() {
 		return true
 	}
 
