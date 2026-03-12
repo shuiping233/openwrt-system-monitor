@@ -208,12 +208,12 @@ func (svc *EbpfNetTrafficService) frame(
 }
 
 func (svc *EbpfNetTrafficService) Run(ctx context.Context) {
-	updateChan, done, err := subscribeNetworkChanges()
+	addrChan, linkChan, done, err := subscribeNetworkChanges()
 	if err != nil {
 		log.Fatalln(err)
 	}
 	defer close(done)
-	go svc.WatchNetworkChanges(ctx, updateChan)
+	go svc.WatchNetworkChanges(ctx, addrChan, linkChan)
 
 	objs := svc.objs
 	ticker := time.NewTicker(1 * time.Second)
@@ -518,35 +518,86 @@ func (svc *EbpfNetTrafficService) refreshInterfaceInfo() {
 	}
 }
 
-func (svc *EbpfNetTrafficService) WatchNetworkChanges(ctx context.Context, ch <-chan netlink.AddrUpdate) {
+func (svc *EbpfNetTrafficService) WatchNetworkChanges(ctx context.Context, addrChan <-chan netlink.AddrUpdate, linkChan chan netlink.LinkUpdate) {
 	log.Println("Watching for network interface changes...")
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case update, ok := <-ch:
+		case signal, ok := <-addrChan:
 			if !ok {
 				log.Println("Netlink address update channel closed")
 				return
 			}
-			link, _ := netlink.LinkByIndex(update.LinkIndex)
+			link, _ := netlink.LinkByIndex(signal.LinkIndex)
 			if link != nil && link.Attrs().Name == svc.captureInterface {
 				// 内核很多网卡事件都会进来,所以不打印
 				// log.Printf("Network change (NewAddr: %v) detected on %s", update.NewAddr, svc.captureInterface)
 				svc.refreshInterfaceInfo()
 			}
+		case signal, ok := <-linkChan:
+			if !ok {
+				log.Println("Netlink device update channel closed")
+				return
+			}
+			// 网卡状态变了 (重点解决 eBPF 失效)
+			if signal.Attrs().Name != svc.captureInterface {
+				continue
+			}
+			log.Printf("Detected network interface state changed on %s", signal.Attrs().Name)
+
+			// 只有当接口处于 UP 状态且 (是新创建的链接 或 状态真的从 DOWN 变 UP)
+			isUp := signal.Attrs().RawFlags&unix.IFF_UP != 0
+			if !isUp {
+				continue
+			}
+
+			log.Printf("Network interface %q is UP, checking eBPF attachment...", svc.captureInterface)
+
+			// 重新挂载
+			if svc.objs == nil {
+				log.Printf("Ebpf objects is nil")
+				continue
+			}
+
+			targetLink := signal.Link
+			if targetLink == nil {
+				log.Printf("signal.Link from link update channel is nil , try to get it by name")
+				targetLink_, err := netlink.LinkByName(svc.captureInterface)
+				if err != nil {
+					log.Printf("Failed to get link by name: %v", err)
+					continue
+				}
+				targetLink = targetLink_
+			}
+
+			err := attachTCObjects(targetLink, svc.objs.CountFlow.FD())
+			if err != nil {
+				log.Printf("Ebpf re-attach failed: %v", err)
+			}
+
+			svc.mutex.Lock()
+			svc.link = targetLink
+			svc.mutex.Unlock()
+			log.Printf("Ebpf re-attached to %q (Index: %d)", svc.captureInterface, targetLink.Attrs().Index)
+
+			svc.refreshInterfaceInfo()
 		}
 	}
 }
 
 // 一定要记得close(done)通道
-func subscribeNetworkChanges() (updateChan chan netlink.AddrUpdate, done chan struct{}, err error) {
-	updateChan = make(chan netlink.AddrUpdate)
+func subscribeNetworkChanges() (addrChan chan netlink.AddrUpdate, linkChan chan netlink.LinkUpdate, done chan struct{}, err error) {
+	addrChan = make(chan netlink.AddrUpdate)
+	linkChan = make(chan netlink.LinkUpdate)
 	done = make(chan struct{})
-	if err := netlink.AddrSubscribe(updateChan, done); err != nil {
-		return nil, nil, fmt.Errorf("failed to subscribe netlink addr changes: %w", err)
+	if err := netlink.AddrSubscribe(addrChan, done); err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to subscribe netlink ip address changes: %w", err)
 	}
-	return updateChan, done, nil
+	if err := netlink.LinkSubscribe(linkChan, done); err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to subscribe netlink device changes: %w", err)
+	}
+	return addrChan, linkChan, done, nil
 }
 
 func getOrCreateMetrics(ip netip.Addr, res map[netip.Addr]*IPMetrics) *IPMetrics {
