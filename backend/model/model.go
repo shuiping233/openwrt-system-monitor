@@ -27,6 +27,19 @@ const (
 )
 
 const (
+	ProtoICMP     uint8 = 1   // Internet Control Message (IPv4 Ping)
+	ProtoIGMP     uint8 = 2   // Internet Group Management (组播管理)
+	ProtoTCP      uint8 = 6   // Transmission Control Protocol
+	ProtoUDP      uint8 = 17  // User Datagram Protocol
+	ProtoIPv6ICMP uint8 = 58  // ICMP for IPv6 (IPv6 Ping/邻居发现)
+	ProtoGRE      uint8 = 47  // General Routing Encapsulation (虚拟链路/VPN)
+	ProtoESP      uint8 = 50  // Encap Security Payload (IPsec 加密数据)
+	ProtoAH       uint8 = 51  // Authentication Header (IPsec 认证)
+	ProtoOSPF     uint8 = 89  // OSPF 路由协议流量
+	ProtoSCTP     uint8 = 132 // Stream Control Transmission Protocol
+)
+
+const (
 	BSecond  = "B/S"
 	KbSecond = "KB/S"
 	MbSecond = "MB/S"

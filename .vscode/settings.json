@@ -1,10 +1,13 @@
 {
     "cSpell.words": [
         "CLSACT",
+        "IGMP",
         "Ktime",
         "netlink",
         "Nsec",
+        "OSPF",
         "Qdisc",
-        "qdiscs"
+        "qdiscs",
+        "SCTP"
     ]
 }

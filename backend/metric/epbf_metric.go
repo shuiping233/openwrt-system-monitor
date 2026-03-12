@@ -28,6 +28,10 @@ const (
 	SmoothingAlphaRate  = 0.6
 )
 
+var (
+	ipv4Broadcast = netip.AddrFrom4([4]byte{255, 255, 255, 255})
+)
+
 type IPMetrics struct {
 	IP string
 	// 瞬时累加速率 (每秒 frame 开始时清零)
@@ -39,6 +43,9 @@ type IPMetrics struct {
 	// 累计总量
 	TotalUpload   uint64
 	TotalDownload uint64
+	Tcp           int32
+	Udp           int32
+	Other         int32
 }
 
 type IpStatus struct {
@@ -166,6 +173,9 @@ func (svc *EbpfNetTrafficService) frame(
 	for _, m := range svc.metricsMap {
 		m.UploadRate = 0
 		m.DownloadRate = 0
+		m.Tcp = 0
+		m.Udp = 0
+		m.Other = 0
 	}
 
 	// 2. 迭代 eBPF Map 进行采样
@@ -190,12 +200,12 @@ func (svc *EbpfNetTrafficService) frame(
 			// 更新快照
 			lastSnapshots[key] = totalBytes
 
-			// 只有在有流量时才进行聚合计算，减少 parseToAddr 等操作的开销
-			if delta > 0 {
-				svc.trafficAggregateWithDuration(key, delta, dt)
-			}
-		}
+			srcAddr := svc.parseToAddr(key.SrcAddr, key.Family)
+			dstAddr := svc.parseToAddr(key.DstAddr, key.Family)
+			rate := float64(delta) / dt
 
+			svc.trafficAggregateWithDuration(srcAddr, dstAddr, delta, rate, key.Proto)
+		}
 		if err != nil || count < batchSize {
 			break
 		}
@@ -205,6 +215,38 @@ func (svc *EbpfNetTrafficService) frame(
 	// 3. 更新时间轴并应用平滑
 	svc.lastFrameTime = now
 	svc.applySmoothing()
+}
+
+func (svc *EbpfNetTrafficService) trafficAggregateWithDuration(srcAddr netip.Addr, dstAddr netip.Addr, delta uint64, rate float64, proto uint8) {
+	// 统计上传
+	if !IsIgnoredAddr(srcAddr) {
+		metric := getOrCreateMetrics(srcAddr, svc.metricsMap)
+		matchProtoAndCount(proto, metric)
+		if delta > 0 {
+			metric.UploadRate += rate
+			metric.TotalUpload += delta
+		}
+	}
+	// 统计下载
+	if !IsIgnoredAddr(dstAddr) {
+		metric := getOrCreateMetrics(dstAddr, svc.metricsMap)
+		matchProtoAndCount(proto, metric)
+		if delta > 0 {
+			metric.DownloadRate += rate
+			metric.TotalDownload += delta
+		}
+	}
+}
+
+func matchProtoAndCount(proto uint8, metric *IPMetrics) {
+	switch proto {
+	case model.ProtoTCP:
+		metric.Tcp += 1
+	case model.ProtoUDP:
+		metric.Udp += 1
+	default:
+		metric.Other += 1
+	}
 }
 
 func (svc *EbpfNetTrafficService) Run(ctx context.Context) {
@@ -298,6 +340,15 @@ func (svc *EbpfNetTrafficService) GetAggregationTrafficMetric() *model.Aggregati
 	svc.mutex.RLock()
 	defer svc.mutex.RUnlock()
 	for ip, value := range metricsMap {
+
+		IpType := model.IpAddressTypeWan
+		// 统计上传 (Source 是本地)
+		if svc.IsLanIp(ip) {
+			IpType = model.IpAddressTypeLan
+		} else if IsUnknownIp(ip) {
+			IpType = model.IpAddressTypeUnknown
+		}
+
 		ipStr := formatIP(ip)
 		rate, unit := utils.ConvertBytes(value.SmoothDownloadRate, model.BSecond)
 		incoming := model.MetricUnit{Value: rate, Unit: unit}
@@ -331,7 +382,7 @@ func (svc *EbpfNetTrafficService) GetAggregationTrafficMetric() *model.Aggregati
 
 		result.Details = append(result.Details, model.AggregationTrafficDetails{
 			Ip:              ipStr,
-			IpType:          model.IpAddressTypeLan, // TODO 先写死,因为其他类型的ip流量抓取还没做
+			IpType:          IpType,
 			IpFamily:        ipFamily,
 			Incoming:        incoming,
 			Outgoing:        outgoing,
@@ -339,9 +390,9 @@ func (svc *EbpfNetTrafficService) GetAggregationTrafficMetric() *model.Aggregati
 			TotalIncoming:   totalIncoming,
 			TotalOutgoing:   totalOutgoing,
 			TotalTraffic:    totalTraffic,
-			Tcp:             -1, // TODO 先这样,后面会找NetworkConnection里的值统计好之后再填进去
-			Udp:             -1, // TODO 先这样,后面会找NetworkConnection里的值统计好之后再填进去
-			Other:           -1, // TODO 先这样,后面会找NetworkConnection里的值统计好之后再填进去
+			Tcp:             value.Tcp / 2,
+			Udp:             value.Udp / 2,
+			Other:           value.Other / 2,
 		})
 	}
 	return result
@@ -375,28 +426,6 @@ func (svc *EbpfNetTrafficService) applySmoothing() {
 		if m.SmoothDownloadRate < 1 {
 			m.SmoothDownloadRate = 0
 		}
-	}
-}
-
-func (svc *EbpfNetTrafficService) trafficAggregateWithDuration(key bpf.BpfFlowKey, delta uint64, duration float64) {
-	// 速率 = 增量字节 / 实际耗时
-	rate := float64(delta) / duration
-
-	srcAddr := svc.parseToAddr(key.SrcAddr, key.Family)
-	dstAddr := svc.parseToAddr(key.DstAddr, key.Family)
-
-	// 统计上传 (Source 是本地)
-	if srcAddr != svc.interfaceIpv4 && svc.IsInLocalSubnet(srcAddr) {
-		metric := getOrCreateMetrics(srcAddr, svc.metricsMap)
-		metric.UploadRate += rate
-		metric.TotalUpload += delta
-	}
-
-	// 统计下载 (Destination 是本地)
-	if dstAddr != svc.interfaceIpv4 && svc.IsInLocalSubnet(dstAddr) {
-		metric := getOrCreateMetrics(dstAddr, svc.metricsMap)
-		metric.DownloadRate += rate
-		metric.TotalDownload += delta
 	}
 }
 
@@ -615,22 +644,54 @@ func getKtimeNS() uint64 {
 	return uint64(ts.Sec)*1e9 + uint64(ts.Nsec)
 }
 
-func (svc *EbpfNetTrafficService) IsInLocalSubnet(ip netip.Addr) bool {
+func (svc *EbpfNetTrafficService) IsLanIp(ip netip.Addr) bool {
 	if ip.Is4() {
 		return svc.interfaceIpv4Prefix.Contains(ip)
 	}
 
 	if ip.Is6() {
-		// 过滤链路本地地址 (fe80::/10)，这种流量通常不计入互联网统计
-		if ip.IsLinkLocalUnicast() {
-			return false
-		}
 		// 只有在 Prefix 有效时才进行判断
 		if !svc.interfaceIpv6Prefix.IsValid() {
 			return false
 		}
 		return svc.interfaceIpv6Prefix.Contains(ip)
 	}
+	return false
+}
+
+func IsWanIp(ip netip.Addr) bool {
+	if ip.IsGlobalUnicast() {
+		return true
+	}
+	return false
+}
+
+func IsUnknownIp(ip netip.Addr) bool {
+	// 2. 协议噪音过滤：过滤所有组播 (IPv4 224+ / IPv6 ffxx::)
+	// 源码里 IsMulticast 涵盖了所有的 Multicast 变体
+	if ip.IsMulticast() {
+		return true
+	}
+
+	// 4. 补漏：IPv4 全网广播
+	if ip.Is4() && ip == ipv4Broadcast {
+		return true
+	}
+	return false
+}
+
+func IsIgnoredAddr(ip netip.Addr) bool {
+
+	if !ip.IsValid() || ip.IsUnspecified() || ip.IsLoopback() {
+		return true
+	}
+
+	// 3. 链路本地过滤：过滤 fe80:: 和 169.254.x.x
+	// 这些地址不经过三层路由，仅用于二层链路发现
+	if ip.IsLinkLocalUnicast() {
+		return true
+	}
+
 	return false
 }
 
