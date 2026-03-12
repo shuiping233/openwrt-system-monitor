@@ -200,12 +200,12 @@ func (svc *EbpfNetTrafficService) frame(
 			// 更新快照
 			lastSnapshots[key] = totalBytes
 
-			// 只有在有流量时才进行聚合计算，减少 parseToAddr 等操作的开销
-			if delta > 0 {
-				svc.trafficAggregateWithDuration(key, delta, dt)
-			}
-		}
+			srcAddr := svc.parseToAddr(key.SrcAddr, key.Family)
+			dstAddr := svc.parseToAddr(key.DstAddr, key.Family)
+			rate := float64(delta) / dt
 
+			svc.trafficAggregateWithDuration(srcAddr, dstAddr, delta, rate, key.Proto)
+		}
 		if err != nil || count < batchSize {
 			break
 		}
@@ -217,25 +217,22 @@ func (svc *EbpfNetTrafficService) frame(
 	svc.applySmoothing()
 }
 
-func (svc *EbpfNetTrafficService) trafficAggregateWithDuration(key bpf.BpfFlowKey, delta uint64, duration float64) {
-	// 速率 = 增量字节 / 实际耗时
-	rate := float64(delta) / duration
-
-	srcAddr := svc.parseToAddr(key.SrcAddr, key.Family)
-	dstAddr := svc.parseToAddr(key.DstAddr, key.Family)
-
+func (svc *EbpfNetTrafficService) trafficAggregateWithDuration(srcAddr netip.Addr, dstAddr netip.Addr, delta uint64, rate float64, proto uint8) {
 	if !IsIgnoredAddr(srcAddr) {
 		metric := getOrCreateMetrics(srcAddr, svc.metricsMap)
-		metric.UploadRate += rate
-		metric.TotalUpload += delta
-		matchProtoAndCount(key.Proto, metric)
+		matchProtoAndCount(proto, metric)
+		if delta > 0 {
+			metric.DownloadRate += rate
+			metric.TotalDownload += delta
+		}
 	}
-
 	if !IsIgnoredAddr(dstAddr) {
 		metric := getOrCreateMetrics(dstAddr, svc.metricsMap)
-		metric.DownloadRate += rate
-		metric.TotalDownload += delta
-		matchProtoAndCount(key.Proto, metric)
+		matchProtoAndCount(proto, metric)
+		if delta > 0 {
+			metric.UploadRate += rate
+			metric.TotalUpload += delta
+		}
 	}
 }
 
@@ -346,7 +343,7 @@ func (svc *EbpfNetTrafficService) GetAggregationTrafficMetric() *model.Aggregati
 		// 统计上传 (Source 是本地)
 		if svc.IsLanIp(ip) {
 			IpType = model.IpAddressTypeLan
-		} else if IsOtherIp(ip) {
+		} else if IsUnknownIp(ip) {
 			IpType = model.IpAddressTypeUnknown
 		}
 
@@ -667,7 +664,7 @@ func IsWanIp(ip netip.Addr) bool {
 	return false
 }
 
-func IsOtherIp(ip netip.Addr) bool {
+func IsUnknownIp(ip netip.Addr) bool {
 	// 2. 协议噪音过滤：过滤所有组播 (IPv4 224+ / IPv6 ffxx::)
 	// 源码里 IsMulticast 涵盖了所有的 Multicast 变体
 	if ip.IsMulticast() {
