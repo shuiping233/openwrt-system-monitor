@@ -212,8 +212,12 @@ func main() {
 
 	addr := *host + ":" + strconv.Itoa(*port)
 	httpServer := &http.Server{
-		Addr:    addr,
-		Handler: http.DefaultServeMux, // 你的 HandleFunc 都注册在这里
+		Addr:              addr,
+		Handler:           http.DefaultServeMux,
+		ReadHeaderTimeout: model.HttpServerReadHeaderTimeout,
+		ReadTimeout:       model.HttpServerReadTimeout,
+		WriteTimeout:      model.HttpServerWriteTimeout,
+		IdleTimeout:       model.HttpServerIdleTimeout,
 	}
 
 	log.Println("print input config : ")

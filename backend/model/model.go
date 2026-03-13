@@ -2,8 +2,14 @@ package model
 
 import "time"
 
-const MinServiceRunDuration = 35 * time.Second
-const GzipThreshold = 4 * 1024
+const (
+	MinServiceRunDuration       = 35 * time.Second
+	GzipThreshold               = 4 * 1024
+	HttpServerReadHeaderTimeout = 10 * time.Second // Slowloris 防护
+	HttpServerReadTimeout       = 15 * time.Second // 完整请求体读取
+	HttpServerWriteTimeout      = 20 * time.Second // 响应写入
+	HttpServerIdleTimeout       = 60 * time.Second // Keep-Alive 空闲
+)
 
 const (
 	StringDefault              = "unknown"
