@@ -146,23 +146,23 @@ const aggregationPageStates = reactive<Record<IpAddressType, {
   pageInputValue: string;
 }>>({
   lan: {
-    pageSize: settings.aggregation_lan_page_size || aggregationPageSizeOptions[0],
-    isCustomPageSize: !aggregationPageSizeOptions.includes(settings.aggregation_lan_page_size),
-    customPageSize: !aggregationPageSizeOptions.includes(settings.aggregation_lan_page_size) ? String(settings.aggregation_lan_page_size) : '',
+    pageSize: settings.aggregation_table_page_size || aggregationPageSizeOptions[0],
+    isCustomPageSize: !aggregationPageSizeOptions.includes(settings.aggregation_table_page_size),
+    customPageSize: !aggregationPageSizeOptions.includes(settings.aggregation_table_page_size) ? String(settings.aggregation_table_page_size) : '',
     currentPage: 0,
     pageInputValue: '1',
   },
   wan: {
-    pageSize: settings.aggregation_wan_page_size || aggregationPageSizeOptions[0],
-    isCustomPageSize: !aggregationPageSizeOptions.includes(settings.aggregation_wan_page_size),
-    customPageSize: !aggregationPageSizeOptions.includes(settings.aggregation_wan_page_size) ? String(settings.aggregation_wan_page_size) : '',
+    pageSize: settings.aggregation_table_page_size || aggregationPageSizeOptions[0],
+    isCustomPageSize: !aggregationPageSizeOptions.includes(settings.aggregation_table_page_size),
+    customPageSize: !aggregationPageSizeOptions.includes(settings.aggregation_table_page_size) ? String(settings.aggregation_table_page_size) : '',
     currentPage: 0,
     pageInputValue: '1',
   },
   unknown: {
-    pageSize: settings.aggregation_unknown_page_size || aggregationPageSizeOptions[0],
-    isCustomPageSize: !aggregationPageSizeOptions.includes(settings.aggregation_unknown_page_size),
-    customPageSize: !aggregationPageSizeOptions.includes(settings.aggregation_unknown_page_size) ? String(settings.aggregation_unknown_page_size) : '',
+    pageSize: settings.aggregation_table_page_size || aggregationPageSizeOptions[0],
+    isCustomPageSize: !aggregationPageSizeOptions.includes(settings.aggregation_table_page_size),
+    customPageSize: !aggregationPageSizeOptions.includes(settings.aggregation_table_page_size) ? String(settings.aggregation_table_page_size) : '',
     currentPage: 0,
     pageInputValue: '1',
   },
@@ -1096,12 +1096,7 @@ const switchAggregationToPresetSize = async (size: number) => {
   state.currentPage = totalPages > 0 ? Math.min(state.currentPage, totalPages - 1) : 0;
   state.pageInputValue = String(state.currentPage + 1);
   // 保存到数据库
-  const configKeyMap: Record<IpAddressType, keyof Settings> = {
-    lan: 'aggregation_lan_page_size',
-    wan: 'aggregation_wan_page_size',
-    unknown: 'aggregation_unknown_page_size',
-  };
-  await setConfig(configKeyMap[activeAggregationTab.value], size);
+  await setConfig("aggregation_table_page_size", size);
 };
 
 // 处理聚合统计自定义分页大小变更
@@ -1117,12 +1112,7 @@ const handleAggregationCustomPageSizeChange = async () => {
     state.currentPage = totalPages > 0 ? Math.min(state.currentPage, totalPages - 1) : 0;
     state.pageInputValue = String(state.currentPage + 1);
     // 保存到数据库
-    const configKeyMap: Record<IpAddressType, keyof Settings> = {
-      lan: 'aggregation_lan_page_size',
-      wan: 'aggregation_wan_page_size',
-      unknown: 'aggregation_unknown_page_size',
-    };
-    await setConfig(configKeyMap[activeAggregationTab.value], value);
+    await setConfig("aggregation_table_page_size", value);
   }
 };
 
@@ -1192,7 +1182,7 @@ watch(() => currentAggregationIps.value, () => {
 }, { immediate: true });
 
 // 监听聚合统计分页大小设置变化，从外部更新时同步到组件
-watch(() => settings.aggregation_lan_page_size, (newValue) => {
+watch(() => settings.aggregation_table_page_size, (newValue) => {
   if (newValue && newValue !== aggregationPageStates.lan.pageSize) {
     aggregationPageStates.lan.pageSize = newValue;
     aggregationPageStates.lan.isCustomPageSize = !aggregationPageSizeOptions.includes(newValue);
@@ -1200,7 +1190,7 @@ watch(() => settings.aggregation_lan_page_size, (newValue) => {
   }
 }, { immediate: true });
 
-watch(() => settings.aggregation_wan_page_size, (newValue) => {
+watch(() => settings.aggregation_table_page_size, (newValue) => {
   if (newValue && newValue !== aggregationPageStates.wan.pageSize) {
     aggregationPageStates.wan.pageSize = newValue;
     aggregationPageStates.wan.isCustomPageSize = !aggregationPageSizeOptions.includes(newValue);
@@ -1208,7 +1198,7 @@ watch(() => settings.aggregation_wan_page_size, (newValue) => {
   }
 }, { immediate: true });
 
-watch(() => settings.aggregation_unknown_page_size, (newValue) => {
+watch(() => settings.aggregation_table_page_size, (newValue) => {
   if (newValue && newValue !== aggregationPageStates.unknown.pageSize) {
     aggregationPageStates.unknown.pageSize = newValue;
     aggregationPageStates.unknown.isCustomPageSize = !aggregationPageSizeOptions.includes(newValue);
@@ -1410,7 +1400,7 @@ const getConnectionSortIcon = (columnId: string): string => {
           <div class="flex items-center gap-2 text-xs sm:text-sm shrink-0 md:flex-1 md:justify-center">
             <span class="text-slate-400">流量统计起始时间:</span>
             <span class="text-slate-300 font-mono">{{ formatCaptureStartTime(aggregationData?.capture_start_at)
-              }}</span>
+            }}</span>
           </div>
           <!-- 全局搜索框（右侧） -->
           <div class="relative w-full md:w-auto">
