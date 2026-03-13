@@ -1212,22 +1212,22 @@ const getConnectionSortIcon = (columnId: string): string => {
         <div
           class="px-4 py-3 border-b border-slate-700 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
           <!-- DNS 查询开关（左侧） -->
-          <label class="flex items-center gap-2 cursor-pointer flex-shrink-0 md:w-40">
+          <label class="flex items-center gap-2 cursor-pointer shrink-0 md:w-40">
             <input type="checkbox" v-model="enableAggregationDns"
               class="w-4 h-4 rounded border-slate-600 text-blue-500 focus:ring-blue-500 bg-slate-700" />
             <span class="text-sm text-slate-300">启用 DNS 查询</span>
             <span v-if="aggregationQuerying" class="text-xs text-blue-400 animate-pulse">查询中...</span>
           </label>
           <!-- 流量统计起始时间（中间，PC端居中） -->
-          <div class="flex items-center gap-2 text-xs sm:text-sm flex-shrink-0 md:flex-1 md:justify-center">
+          <div class="flex items-center gap-2 text-xs sm:text-sm shrink-0 md:flex-1 md:justify-center">
             <span class="text-slate-400">流量统计起始时间:</span>
             <span class="text-slate-300 font-mono">{{ formatCaptureStartTime(aggregationData?.capture_start_at)
-              }}</span>
+            }}</span>
           </div>
           <!-- 全局搜索框（右侧） -->
           <div class="relative w-full md:w-auto">
             <input v-model="aggregationFilter" placeholder="搜索 IP、流量、连接数..."
-              class="bg-slate-900 border border-slate-600 text-white text-xs px-3 py-1.5 pr-8 rounded w-full md:w-56 min-w-[8rem] outline-none focus:border-blue-400" />
+              class="bg-slate-900 border border-slate-600 text-white text-xs px-3 py-1.5 pr-8 rounded w-full md:w-56 min-w-32 outline-none focus:border-blue-400" />
             <button v-if="aggregationFilter" @click="aggregationFilter = ''"
               class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs w-4 h-4 flex items-center justify-center rounded hover:bg-slate-700 transition-colors"
               title="清空搜索">
@@ -1432,7 +1432,7 @@ const getConnectionSortIcon = (columnId: string): string => {
         <div
           class="px-4 py-3 border-b border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <!-- DNS 查询开关 -->
-          <label class="flex items-center gap-2 cursor-pointer flex-shrink-0">
+          <label class="flex items-center gap-2 cursor-pointer shrink-0">
             <input type="checkbox" v-model="enableConnectionsDns"
               class="w-4 h-4 rounded border-slate-600 text-blue-500 focus:ring-blue-500 bg-slate-700" />
             <span class="text-sm text-slate-300">启用 DNS 查询</span>
@@ -1441,7 +1441,7 @@ const getConnectionSortIcon = (columnId: string): string => {
           <!-- 全局搜索框 -->
           <div class="relative w-full sm:w-auto">
             <input v-model="globalFilter" placeholder="全局搜索..."
-              class="bg-slate-900 border border-slate-600 text-white text-xs px-3 py-1.5 pr-8 rounded w-full sm:w-56 min-w-[8rem] outline-none focus:border-blue-400" />
+              class="bg-slate-900 border border-slate-600 text-white text-xs px-3 py-1.5 pr-8 rounded w-full sm:w-56 min-w-32 outline-none focus:border-blue-400" />
             <button v-if="globalFilter" @click="globalFilter = ''"
               class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs w-4 h-4 flex items-center justify-center rounded hover:bg-slate-700 transition-colors"
               title="清空搜索">
@@ -1467,11 +1467,11 @@ const getConnectionSortIcon = (columnId: string): string => {
                   </div>
                   <!-- 列过滤器 -->
                   <div v-if="header.column.getCanFilter()" class="mt-1 flex justify-center">
-                    <div class="relative min-w-[60px]">
+                    <div class="relative min-w-15">
                       <input :value="header.column.getFilterValue() ?? ''"
                         @input="e => header.column.setFilterValue((e.target as HTMLInputElement).value)"
                         :placeholder="`过滤 ${header.column.columnDef.header as string}...`"
-                        class="bg-slate-900 border border-slate-600 text-xs px-1 py-0.5 pr-6 rounded w-full min-w-[60px] text-slate-200 outline-none"
+                        class="bg-slate-900 border border-slate-600 text-xs px-1 py-0.5 pr-6 rounded w-full min-w-15 text-slate-200 outline-none"
                         @click.stop />
 
                       <button v-if="header.column.getFilterValue()" @click.stop="header.column.setFilterValue('')"
