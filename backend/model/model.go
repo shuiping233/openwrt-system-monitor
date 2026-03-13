@@ -3,6 +3,7 @@ package model
 import "time"
 
 const MinServiceRunDuration = 35 * time.Second
+const GzipThreshold = 4 * 1024
 
 const (
 	StringDefault              = "unknown"
@@ -70,6 +71,7 @@ type CacheValue struct {
 	UpdateAt time.Time
 	ExpireAt time.Time
 	Data     []byte
+	IsGzip   bool
 }
 
 type CacheStringValue struct {

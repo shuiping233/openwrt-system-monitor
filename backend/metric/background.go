@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"openwrt-diskio-api/backend/model"
+	"openwrt-diskio-api/backend/utils"
 )
 
 var semaphore = make(chan struct{}, 3)
@@ -67,10 +68,23 @@ func (b *BackgroundService) UpdateStaticMetric() {
 	if err != nil {
 		log.Fatalf("StaticMetric json marshal error : %s", err)
 	}
+
+	isGzip := false
+	if len(jsonBytes) > model.GzipThreshold {
+		gzipBytes, err := utils.GzipBytes(jsonBytes)
+		if err != nil {
+			log.Printf("StaticMetric gzip error : %s", err)
+		} else {
+			isGzip = true
+			jsonBytes = gzipBytes
+		}
+	}
+
 	b.setJsonBytes(
 		model.JsonCacheKeyStaticMetric,
 		time.Duration(updateInterval)*time.Second,
 		jsonBytes,
+		isGzip,
 	)
 }
 
@@ -95,12 +109,25 @@ func (b *BackgroundService) UpdateDynamicMetric() {
 	updateInterval := b.UpdateDynamicMetricInterval
 	jsonBytes, err := json.Marshal(dynamicMetric)
 	if err != nil {
-		log.Printf("dynamicMetric json marshal error : %s", err)
+		log.Fatalf("dynamicMetric json marshal error : %s", err)
 	}
+
+	isGzip := false
+	if len(jsonBytes) > model.GzipThreshold {
+		gzipBytes, err := utils.GzipBytes(jsonBytes)
+		if err != nil {
+			log.Printf("StaticMetric gzip error : %s", err)
+		} else {
+			isGzip = true
+			jsonBytes = gzipBytes
+		}
+	}
+
 	b.setJsonBytes(
 		model.JsonCacheKeyDynamicMetric,
 		time.Duration(updateInterval)*time.Second,
 		jsonBytes,
+		isGzip,
 	)
 }
 
@@ -125,12 +152,25 @@ func (b *BackgroundService) UpdateAggregationTrafficMetric() {
 	aggregationTrafficMetric := b.ebpfService.GetAggregationTrafficMetric()
 	jsonBytes, err := json.Marshal(aggregationTrafficMetric)
 	if err != nil {
-		log.Printf("AggregationTrafficMetric json marshal error : %s", err)
+		log.Fatalf("AggregationTrafficMetric json marshal error : %s", err)
 	}
+
+	isGzip := false
+	if len(jsonBytes) > model.GzipThreshold {
+		gzipBytes, err := utils.GzipBytes(jsonBytes)
+		if err != nil {
+			log.Printf("StaticMetric gzip error : %s", err)
+		} else {
+			isGzip = true
+			jsonBytes = gzipBytes
+		}
+	}
+
 	b.setJsonBytes(
 		model.JsonCacheKeyAggregationTraffic,
 		time.Duration(1)*time.Second,
 		jsonBytes,
+		isGzip,
 	)
 }
 
@@ -146,10 +186,23 @@ func (b *BackgroundService) UpdateNetworkConnectionDetails() {
 	if err != nil {
 		log.Fatalf("NetworkConnectionDetails json marshal error : %s", err)
 	}
+
+	isGzip := false
+	if len(jsonBytes) > model.GzipThreshold {
+		gzipBytes, err := utils.GzipBytes(jsonBytes)
+		if err != nil {
+			log.Printf("StaticMetric gzip error : %s", err)
+		} else {
+			isGzip = true
+			jsonBytes = gzipBytes
+		}
+	}
+
 	b.setJsonBytes(
 		model.JsonCacheKeyNetworkConnectionMetric,
 		time.Duration(updateInterval)*time.Second,
 		jsonBytes,
+		isGzip,
 	)
 }
 
@@ -173,21 +226,22 @@ func (b *BackgroundService) Worker(index int) {
 	log.Printf("worker %d exit", index)
 }
 
-func (b *BackgroundService) setJsonBytes(key string, updateInterval time.Duration, value []byte) {
+func (b *BackgroundService) setJsonBytes(key string, updateInterval time.Duration, value []byte, isGzip bool) {
 	now := time.Now().UTC()
 	b.jsonCache.Store(key,
 		model.CacheValue{
 			UpdateAt: now,
 			ExpireAt: now.Add(updateInterval),
 			Data:     value,
+			IsGzip:   isGzip,
 		},
 	)
 }
-func (b *BackgroundService) GetJsonBytes(key string) []byte {
+func (b *BackgroundService) GetJsonBytes(key string) ([]byte, bool) {
 	rawCache, ok := b.jsonCache.Load(key)
 	if !ok {
 		log.Printf("get json cache failed : %s not found", key)
-		return []byte{}
+		return []byte{}, false
 	}
 	cache, ok := rawCache.(model.CacheValue)
 	if !ok {
@@ -204,7 +258,7 @@ func (b *BackgroundService) GetJsonBytes(key string) []byte {
 			}
 		}
 	}
-	return cache.Data
+	return cache.Data, cache.IsGzip
 }
 
 func (b *BackgroundService) Close() {

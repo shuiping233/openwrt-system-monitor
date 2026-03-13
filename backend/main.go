@@ -41,15 +41,22 @@ var (
 	dnsQueryService *dns.DnsQueryService
 )
 
+func setJsonHeader(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+}
+func setGzipHeader(w http.ResponseWriter) {
+	w.Header().Set("Content-Encoding", "gzip")
+}
+
 func DynamicMetricHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "only GET", http.StatusMethodNotAllowed)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	setJsonHeader(w)
 
-	jsonBytes := background.GetJsonBytes(model.JsonCacheKeyDynamicMetric)
+	jsonBytes, isGzip := background.GetJsonBytes(model.JsonCacheKeyDynamicMetric)
 	if len(jsonBytes) == 0 {
 		var err error
 		jsonBytes, err = json.Marshal(&model.DynamicMetric{})
@@ -58,6 +65,9 @@ func DynamicMetricHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, errMsg, http.StatusInternalServerError)
 			return
 		}
+	}
+	if isGzip {
+		setGzipHeader(w)
 	}
 	w.Write(jsonBytes)
 	background.DynamicMetricServiceActiveSignal()
@@ -69,9 +79,9 @@ func NetworkConnectionMetricHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	setJsonHeader(w)
 
-	jsonBytes := background.GetJsonBytes(model.JsonCacheKeyNetworkConnectionMetric)
+	jsonBytes, isGzip := background.GetJsonBytes(model.JsonCacheKeyNetworkConnectionMetric)
 	if len(jsonBytes) == 0 {
 		var err error
 		jsonBytes, err = json.Marshal(&model.NetworkConnectionMetric{})
@@ -81,6 +91,9 @@ func NetworkConnectionMetricHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if isGzip {
+		setGzipHeader(w)
+	}
 	w.Write(jsonBytes)
 }
 
@@ -89,9 +102,9 @@ func StaticMetricHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "only GET", http.StatusMethodNotAllowed)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
+	setJsonHeader(w)
 
-	jsonBytes := background.GetJsonBytes(model.JsonCacheKeyStaticMetric)
+	jsonBytes, isGzip := background.GetJsonBytes(model.JsonCacheKeyStaticMetric)
 	if len(jsonBytes) == 0 {
 		var err error
 		jsonBytes, err = json.Marshal(&model.StaticMetric{})
@@ -101,6 +114,9 @@ func StaticMetricHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if isGzip {
+		setGzipHeader(w)
+	}
 	w.Write(jsonBytes)
 }
 func AggregationTrafficHandler(w http.ResponseWriter, r *http.Request) {
@@ -108,9 +124,9 @@ func AggregationTrafficHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "only GET", http.StatusMethodNotAllowed)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
+	setJsonHeader(w)
 
-	jsonBytes := background.GetJsonBytes(model.JsonCacheKeyAggregationTraffic)
+	jsonBytes, isGzip := background.GetJsonBytes(model.JsonCacheKeyAggregationTraffic)
 	if len(jsonBytes) == 0 {
 		var err error
 		jsonBytes, err = json.Marshal(&model.AggregationTrafficMetric{})
@@ -119,6 +135,9 @@ func AggregationTrafficHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, errMsg, http.StatusInternalServerError)
 			return
 		}
+	}
+	if isGzip {
+		setGzipHeader(w)
 	}
 	w.Write(jsonBytes)
 	background.AggregationTrafficServiceActiveSignal()
@@ -164,7 +183,7 @@ func DnsQueryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	setJsonHeader(w)
 	json.NewEncoder(w).Encode(results)
 }
 

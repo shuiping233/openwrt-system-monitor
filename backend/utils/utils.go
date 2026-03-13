@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"bytes"
+	"compress/gzip"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -201,4 +203,22 @@ func GetInterfaceGuaIpv6Info(interfaceName string) (addr netip.Addr, prefix neti
 	}
 
 	return addr, prefix, fmt.Errorf("no global ipv6 prefix found on %q", interfaceName)
+}
+
+func GzipBytes(input []byte) ([]byte, error) {
+	buf := &bytes.Buffer{}
+	gz, err := gzip.NewWriterLevel(buf, gzip.BestSpeed)
+	if err != nil {
+		return nil, err
+	}
+	_, err = gz.Write(input)
+	if err != nil {
+		gz.Close()
+		return nil, err
+	}
+
+	if err := gz.Close(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
