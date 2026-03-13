@@ -94,12 +94,12 @@ func SumUint64(slice []string) (uint64, error) {
 }
 
 func CalculateCpuUsage(nowCpuCycles uint64, lastCpuCycles uint64, nowCpuIdle uint64, lastCpuIdle uint64) (cpuUsage float64) {
-	totalDelta := int(nowCpuCycles) - int(lastCpuCycles)
+	totalDelta := int64(nowCpuCycles) - int64(lastCpuCycles)
 
 	if totalDelta <= 0 {
 		return 0.0
 	}
-	idleDelta := int(nowCpuIdle) - int(lastCpuIdle)
+	idleDelta := int64(nowCpuIdle) - int64(lastCpuIdle)
 	if idleDelta <= 0 {
 		return 0.0
 	}
@@ -117,7 +117,7 @@ func RandHex(length int) string {
 		return ""
 	}
 	b := make([]byte, (length/2)+1)
-	rand.Read(b)
+	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)[:length]
 }
 
@@ -213,7 +213,7 @@ func GzipBytes(input []byte) ([]byte, error) {
 	}
 	_, err = gz.Write(input)
 	if err != nil {
-		gz.Close()
+		_ = gz.Close()
 		return nil, err
 	}
 

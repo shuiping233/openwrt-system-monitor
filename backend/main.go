@@ -69,7 +69,7 @@ func DynamicMetricHandler(w http.ResponseWriter, r *http.Request) {
 	if isGzip {
 		setGzipHeader(w)
 	}
-	w.Write(jsonBytes)
+	_, _ = w.Write(jsonBytes)
 	background.DynamicMetricServiceActiveSignal()
 }
 
@@ -94,7 +94,7 @@ func NetworkConnectionMetricHandler(w http.ResponseWriter, r *http.Request) {
 	if isGzip {
 		setGzipHeader(w)
 	}
-	w.Write(jsonBytes)
+	_, _ = w.Write(jsonBytes)
 }
 
 func StaticMetricHandler(w http.ResponseWriter, r *http.Request) {
@@ -117,7 +117,7 @@ func StaticMetricHandler(w http.ResponseWriter, r *http.Request) {
 	if isGzip {
 		setGzipHeader(w)
 	}
-	w.Write(jsonBytes)
+	_, _ = w.Write(jsonBytes)
 }
 func AggregationTrafficHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -139,7 +139,7 @@ func AggregationTrafficHandler(w http.ResponseWriter, r *http.Request) {
 	if isGzip {
 		setGzipHeader(w)
 	}
-	w.Write(jsonBytes)
+	_, _ = w.Write(jsonBytes)
 	background.AggregationTrafficServiceActiveSignal()
 }
 func DnsQueryHandler(w http.ResponseWriter, r *http.Request) {
@@ -184,7 +184,7 @@ func DnsQueryHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	setJsonHeader(w)
-	json.NewEncoder(w).Encode(results)
+	_ = json.NewEncoder(w).Encode(results)
 }
 
 func PrettyExit(httpServer *http.Server) {

@@ -17,7 +17,6 @@ import (
 
 var (
 	procPaths = model.ProcfsPaths{}
-	aaa       string
 )
 
 type rawConn struct {

@@ -326,7 +326,7 @@ func (svc *EbpfNetTrafficService) Close() {
 	if svc.link != nil {
 		cleanUpTC(svc.link)
 	}
-	svc.objs.Close()
+	_ = svc.objs.Close()
 }
 
 func (svc *EbpfNetTrafficService) GetAggregationTrafficMetric() *model.AggregationTrafficMetric {
@@ -433,7 +433,8 @@ func (svc *EbpfNetTrafficService) applySmoothing() {
 func (svc *EbpfNetTrafficService) parseToAddr(addr [4]uint32, family uint8) netip.Addr {
 	if family == 2 { // AF_INET
 		// 将小端序 uint32 转为 4 字节数组
-		b := [4]byte{byte(addr[0]), byte(addr[0] >> 8), byte(addr[0] >> 16), byte(addr[0] >> 24)}
+		var b [4]byte
+		binary.LittleEndian.PutUint32(b[:], addr[0])
 		return netip.AddrFrom4(b)
 	}
 	// IPv6: 直接从 16 字节切片读取
@@ -641,7 +642,7 @@ func getOrCreateMetrics(ip netip.Addr, res map[netip.Addr]*IPMetrics) *IPMetrics
 
 func getKtimeNS() uint64 {
 	var ts unix.Timespec
-	unix.ClockGettime(unix.CLOCK_MONOTONIC, &ts)
+	_ = unix.ClockGettime(unix.CLOCK_MONOTONIC, &ts)
 	return uint64(ts.Sec)*1e9 + uint64(ts.Nsec)
 }
 
@@ -739,7 +740,7 @@ func cleanUpTC(link netlink.Link) {
 	qdiscs, _ := netlink.QdiscList(link)
 	for _, q := range qdiscs {
 		if q.Attrs().Parent == netlink.HANDLE_CLSACT {
-			netlink.QdiscDel(q)
+			_ = netlink.QdiscDel(q)
 		}
 	}
 }
@@ -748,7 +749,7 @@ func startCapture(objs *bpf.BpfObjects) {
 	log.Println("Enable ebpf network traffic capture")
 	key := uint32(0)
 	val := uint32(1)
-	objs.ConfigMap.Update(&key, &val, ebpf.UpdateAny)
+	_ = objs.ConfigMap.Update(&key, &val, ebpf.UpdateAny)
 }
 
 func stopCapture(objs *bpf.BpfObjects) {
@@ -758,7 +759,7 @@ func stopCapture(objs *bpf.BpfObjects) {
 	log.Println("Disable ebpf network traffic capture")
 	key := uint32(0)
 	val := uint32(0)
-	objs.ConfigMap.Update(&key, &val, ebpf.UpdateAny)
+	_ = objs.ConfigMap.Update(&key, &val, ebpf.UpdateAny)
 }
 
 func isCapturing(objs *bpf.BpfObjects) bool {

@@ -8,12 +8,9 @@ import (
 func IsIpInSubnet(ip string, cidr string) bool {
 	ipObj := net.ParseIP(ip)
 	_, subnet, _ := net.ParseCIDR(cidr)
-
-	if subnet.Contains(ipObj) {
-		return true
-	}
-	return false
+	return subnet.Contains(ipObj)
 }
+
 func IsIpInSubnets(ip string, cidrs []string) bool {
 	ipObj := net.ParseIP(ip)
 	for _, cidr := range cidrs {

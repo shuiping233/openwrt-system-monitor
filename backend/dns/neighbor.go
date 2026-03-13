@@ -27,7 +27,7 @@ func NewNeighborService() *NeighborService {
 	}
 	ns.ipToMac.Store(make(map[string]string))
 	ns.macToV4.Store(make(map[string]string))
-	ns.Reload()
+	_ = ns.Reload()
 	return ns
 }
 

@@ -14,8 +14,6 @@ import (
 	"openwrt-diskio-api/backend/utils"
 )
 
-var semaphore = make(chan struct{}, 3)
-
 type BackgroundService struct {
 	Reader                                 FsReaderInterface
 	Runner                                 CommandRunnerInterface
