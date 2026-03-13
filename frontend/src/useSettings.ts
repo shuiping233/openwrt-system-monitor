@@ -17,10 +17,7 @@ export interface Settings {
   dns_poll_interval: number;
   enable_background_stop: boolean;
   background_stop_delay: number;
-  // 聚合统计各Tab的分页大小
-  aggregation_lan_page_size: number;
-  aggregation_wan_page_size: number;
-  aggregation_unknown_page_size: number;
+  aggregation_table_page_size: number;
 }
 
 export const defaultSettings: Settings = {
@@ -37,10 +34,7 @@ export const defaultSettings: Settings = {
   dns_poll_interval: 3, // seconds
   enable_background_stop: true,
   background_stop_delay: 60, // seconds
-  // 聚合统计各Tab的分页大小（默认10）
-  aggregation_lan_page_size: 10,
-  aggregation_wan_page_size: 10,
-  aggregation_unknown_page_size: 10,
+  aggregation_table_page_size: 10,
 };
 
 const settings = reactive<Settings>({ ...defaultSettings });
