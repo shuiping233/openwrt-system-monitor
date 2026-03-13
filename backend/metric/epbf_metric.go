@@ -210,11 +210,12 @@ func (svc *EbpfNetTrafficService) frame(
 			break
 		}
 	}
-	svc.mutex.Unlock()
-
+	
 	// 3. 更新时间轴并应用平滑
 	svc.lastFrameTime = now
 	svc.applySmoothing()
+
+	svc.mutex.Unlock()
 }
 
 func (svc *EbpfNetTrafficService) trafficAggregateWithDuration(srcAddr netip.Addr, dstAddr netip.Addr, delta uint64, rate float64, proto uint8) {
