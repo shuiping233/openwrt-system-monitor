@@ -6,30 +6,48 @@ vars:
   # 获取 GOPATH，如果为空则默认为 ~/go
   GOPATH:
     sh: go env GOPATH || echo "$HOME/go"
+  PKG_MGR:
+    sh: |
+      if command -v apt-get >/dev/null; then echo "apt";
+      elif command -v yum >/dev/null; then echo "yum";
+      else echo "unknown"; fi
 
 tasks:
   install:
     desc: Install all tool chains
-    deps: [install:go, install:packages, install:pnpm, install:tools]
+    deps: [install:packages, install:pnpm, install:tools]
     cmds:
       - go mod tidy
       - lefthook install
 
   install:go:
     internal: true
-    # 如果 go version 执行成功，则跳过此任务
     status:
       - command -v go
+    vars:
+      GO_VER: "1.25.8"
+      ARCH:
+        sh: |
+          case $(uname -m) in
+            x86_64) echo "amd64" ;;
+            aarch64|arm64) echo "arm64" ;;
+            *) echo "amd64" ;;
+          esac
     cmds:
-      - echo "Installing Go..."
-      - sudo add-apt-repository ppa:longsleep/golang-backports -y
-      - sudo apt update
-      - sudo apt install golang-go -y
+      - echo "Installing Go {{.GO_VER}} for {{.ARCH}}..."
+      - curl -sSL "https://go.dev/dl/go{{.GO_VER}}.linux-{{.ARCH}}.tar.gz" | sudo tar -xz -C /usr/local/
+      - sudo ln -sf /usr/local/go/bin/go /usr/bin/go
+      - sudo ln -sf /usr/local/go/bin/gofmt /usr/bin/gofmt
+      - go version
 
   install:packages:
     internal: true
     desc: Install apt packages if missing
-    # 如果这些核心库都存在，就不运行 apt install
+    cmds:
+      - task: "install:packages:{{.PKG_MGR}}"
+    
+  install:packages:apt:
+    internal: true
     status:
       - dpkg -s libbpf-dev libelf-dev build-essential
     cmds:
@@ -40,33 +58,56 @@ tasks:
         libbpf-dev libelf-dev 
         linux-headers-$(uname -r)
 
+  install:packages:yum:
+    internal: true
+    status:
+      - rpm -q libbpf-devel elfutils-libelf-devel
+    cmds:
+      - sudo yum groupinstall -y "Development Tools"
+      - sudo yum install -y clang llvm elfutils-libelf-devel libbpf-devel kernel-devel
+
   install:tools:
     internal: true
     desc: Install Go based tools
-    # 检查这些二进制文件是否都已经在 bin 目录下了
+    deps: [install:go]
     status:
       - test -f {{.GOPATH}}/bin/bpf2go
       - test -f {{.GOPATH}}/bin/lefthook
     cmds:
-      # bpf2go
       - go install github.com/cilium/ebpf/cmd/bpf2go@latest
-      # lefthook
       - go install github.com/evilmartians/lefthook@latest
+
+  install:nodejs:
+    internal: true
+    status:
+      - command -v node
+    cmds:
+      - '{{if eq .PKG_MGR "apt"}} curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash - && sudo apt install -y nodejs {{end}}'
+      - '{{if eq .PKG_MGR "yum"}} sudo yum install -y nodejs {{end}}'
 
   install:pnpm:
     internal: true
+    deps: [install:nodejs]
     status:
       - command -v pnpm
     cmds:
-      # 1. 启用核心包管理器
-      - sudo corepack enable
-      # 2. 准备并激活最新版 pnpm
-      - corepack prepare pnpm@latest --activate
+      - sudo npm install -g pnpm@latest-10
 
   build:
-    desc: Build frontend and backend
+    desc: 使用 GoReleaser 构建 (默认全跑, 可选 --frontend 或 --backend)
+    deps: [install]
+    summary: |
+      no args: build all
+      --frontend: only build frontend
+      --backend: build all (backend depends on frontend)
     cmds:
-      - goreleaser release --snapshot --clean
+      - "{{if eq .CLI_ARGS ``}} goreleaser release --snapshot --clean {{end}}"
+  
+  build-frontend:
+    desc: Build frontend
+    deps: [install:pnpm]
+    cmds : 
+      - bash scripts/build-frontend.sh
 
   code-check:
     desc: Code check
