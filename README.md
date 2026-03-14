@@ -43,7 +43,7 @@
 > 目前`task install`使用了`apt`命令,所以`task install`命令仅支持Debian系发行版
 
 1. 请参考[TaskFile安装教程](https://taskfile.dev/docs/installation)安装TaskFile,或者使用`./scripts/install-taskfile.sh`安装TaskFile也可以,安装完毕后,使用`task -l`查看当前项目的TaskFile命令,没报错则说明TaskFile安装成功
-2. 运行`task install`命令即可一键安装依赖环境
+2. 先运行`task optimize:china`以尽可能使用国内源安装开发环境和依赖,再运行`task install`命令即可一键安装依赖环境
 3. 运行`task build`命令即可一键编译项目(直接运行`task build`也会自动判断并安装依赖环境)
 
 ### 手动安装开发环境和编译项目

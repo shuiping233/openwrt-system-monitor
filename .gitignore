@@ -4,3 +4,4 @@ dist/
 UtTestTemp
 .VSCodeCounter
 backend/pkg/ebpf/
+.install_optimize
