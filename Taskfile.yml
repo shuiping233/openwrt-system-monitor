@@ -1,0 +1,89 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: "3"
+
+vars:
+  # 获取 GOPATH，如果为空则默认为 ~/go
+  GOPATH:
+    sh: go env GOPATH || echo "$HOME/go"
+
+tasks:
+  install:
+    desc: Install all tool chains
+    deps: [install:go, install:packages, install:pnpm, install:tools]
+    cmds:
+      - go mod tidy
+      - lefthook install
+
+  install:go:
+    internal: true
+    # 如果 go version 执行成功，则跳过此任务
+    status:
+      - command -v go
+    cmds:
+      - echo "Installing Go..."
+      - sudo add-apt-repository ppa:longsleep/golang-backports -y
+      - sudo apt update
+      - sudo apt install golang-go -y
+
+  install:packages:
+    internal: true
+    desc: Install apt packages if missing
+    # 如果这些核心库都存在，就不运行 apt install
+    status:
+      - dpkg -s libbpf-dev libelf-dev build-essential
+    cmds:
+      - sudo apt update
+      - >
+        sudo apt install -y 
+        clang llvm gcc-multilib build-essential 
+        libbpf-dev libelf-dev 
+        linux-headers-$(uname -r)
+
+  install:tools:
+    internal: true
+    desc: Install Go based tools
+    # 检查这些二进制文件是否都已经在 bin 目录下了
+    status:
+      - test -f {{.GOPATH}}/bin/bpf2go
+      - test -f {{.GOPATH}}/bin/lefthook
+    cmds:
+      # bpf2go
+      - go install github.com/cilium/ebpf/cmd/bpf2go@latest
+      # lefthook
+      - go install github.com/evilmartians/lefthook@latest
+
+  install:pnpm:
+    internal: true
+    status:
+      - command -v pnpm
+    cmds:
+      # 1. 启用核心包管理器
+      - sudo corepack enable
+      # 2. 准备并激活最新版 pnpm
+      - corepack prepare pnpm@latest --activate
+
+  build:
+    desc: Build frontend and backend
+    cmds:
+      - goreleaser release --snapshot --clean
+
+  code-check:
+    desc: Code check
+    dir: backend
+    deps: [code-check:install]
+    cmds:
+      # - lefthook run
+      - golangci-lint run --fix
+      - go test ./...
+
+  code-check:install:
+    internal: true
+    desc: Install check golang code tool chains
+    status:
+      - command -v gosec
+      - command -v golangci-lint
+      - command -v gofmt
+    cmds:
+      - go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+      - go install honnef.co/go/tools/cmd/staticcheck@latest

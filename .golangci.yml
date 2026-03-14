@@ -1,0 +1,58 @@
+# yaml-language-server: $schema=https://golangci-lint.run/jsonschema/golangci.jsonschema.json
+
+version: "2"
+
+run:
+  timeout: 5m
+  # 允许并行运行
+  allow-parallel-runners: true
+  # 针对 eBPF 的构建标签
+  build-tags:
+    - ebpf
+
+linters:
+  # 注意：这里是顶级的 linters 配置
+  disable:
+    - all
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - bodyclose
+    - goconst
+    - gosec
+    - revive
+    - unparam
+    - whitespace
+    - makezero
+    - nilnil
+    - copyloopvar
+    - prealloc
+    - forbidigo
+
+  settings:
+    govet:
+      # 启用所有分析器（包含 shadow 检查）
+      enable-all: true
+    # gosec:
+      # excludes:
+        # - G103 # 允许在 eBPF 中使用 unsafe
+    revive:
+      rules:
+        - name: exported
+          severity: warning
+        - name: var-naming
+          arguments: [["ID", "UTC", "URL"]]
+    # forbidigo:
+    #   forbid:
+    #     - '^time\.Now\(.*\)$' # 强制 UTC 检查
+    #     - '^time\.Local$'
+    
+
+issues:
+  # 保持默认排除项（比如有些常见的注释格式）
+  max-issues-per-linter: 0
+  max-same-issues: 0
