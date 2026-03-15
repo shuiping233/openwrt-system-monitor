@@ -178,8 +178,10 @@ tasks:
     internal: true
     status:
       - command -v pnpm
+    vars:
+      PNPM_VER: "latest-10"
     cmds:
-      - "{{.SUDO}} npm install -g pnpm@latest-10"
+      - "{{.SUDO}} npm install -g pnpm@{{.PNPM_VER}}"
 
   build:
     desc: 使用 GoReleaser 构建 (默认全跑, 可选 --frontend 或 --backend)
