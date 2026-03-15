@@ -69,7 +69,7 @@ type EbpfNetTrafficService struct {
 	objs                *bpf.BpfObjects
 	link                netlink.Link
 	metricsMap          map[netip.Addr]*IPMetrics
-	mutex               sync.RWMutex
+	mutex               sync.Mutex
 	lastRequestTimeUnix int64
 	captureStartAt      int64
 	lastFrameTime       time.Time
@@ -337,8 +337,8 @@ func (svc *EbpfNetTrafficService) GetAggregationTrafficMetric() *model.Aggregati
 		CaptureInterface: svc.captureInterface,
 		Details:          make([]model.AggregationTrafficDetails, 0, len(metricsMap)),
 	}
-	svc.mutex.RLock()
-	defer svc.mutex.RUnlock()
+	svc.mutex.Lock()
+	defer svc.mutex.Unlock()
 	for ip, value := range metricsMap {
 		IpType := model.IpAddressTypeWan
 		// 统计上传 (Source 是本地)
