@@ -33,7 +33,6 @@ var (
 )
 
 type IPMetrics struct {
-	IP string
 	// 瞬时累加速率 (每秒 frame 开始时清零)
 	UploadRate   float64
 	DownloadRate float64
@@ -633,7 +632,7 @@ func getOrCreateMetrics(ip netip.Addr, res map[netip.Addr]*IPMetrics) *IPMetrics
 	if m, ok := res[ip]; ok {
 		return m
 	}
-	m := &IPMetrics{IP: formatIP(ip)}
+	m := &IPMetrics{}
 	res[ip] = m
 	return m
 }
