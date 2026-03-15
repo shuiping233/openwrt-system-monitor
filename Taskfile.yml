@@ -13,7 +13,7 @@ vars:
   SUDO:
     sh: "[ $(id -u) -ne 0 ] && echo 'sudo' || echo ''"
   GOPATH:
-    sh: go env GOPATH || echo "$HOME/go"
+    sh: GOTOOLCHAIN=local go env GOPATH || echo "$HOME/go"
   PKG_MGR:
     sh: |
       if command -v apt-get >/dev/null; then echo "apt";
@@ -32,7 +32,7 @@ vars:
 tasks:
   optimize:china:
     desc: "一键切换为国内镜像源 (APT, Go, NPM, GitHub)"
-    deps: [install:go, install:nodejs]
+    deps: [install:nodejs]
     cmds:
       - touch .install_optimize
       - |
@@ -44,13 +44,18 @@ tasks:
           fi
           {{.SUDO}} apt update
         fi
-      - go env -w GOPROXY=https://goproxy.cn,direct
+      - task: install:go:{{.PKG_MGR}} 
+      # - go env -w GOPROXY=https://goproxy.cn,direct
+      # - export GOPROXY=https://goproxy.cn,direct
+      - GOTOOLCHAIN=local go env -w GO111MODULE=on
+      - GOTOOLCHAIN=local go env -w GOPROXY=https://goproxy.cn,direct
+      - GOTOOLCHAIN=local go env -w GOINSECURE="*"
       - npm config set registry https://mirrors.cloud.tencent.com/npm/ || true
       - echo "Download optimization complete."
 
   install:
     desc: Install all tool chains
-    deps: [install:nodejs, install:go]
+    deps: [install:nodejs, "install:go:{{.PKG_MGR}}"]
     cmds:
       - task: install:step_2
   
@@ -94,18 +99,28 @@ tasks:
       - node -v
       - npm -v
 
-  install:go:
+  install:go:apt:
     internal: true
     status:
       - command -v go
-    vars:
-      GO_VER: "1.25.8"
+    # vars:
+    #   GO_VER: "1.25.8"
     cmds:
       - echo "Installing Go {{.GO_VER}} for {{.ARCH}}..."
-      - curl -sSL "https://go.dev/dl/go{{.GO_VER}}.linux-{{.ARCH}}.tar.gz" | {{.SUDO}} tar -xz -C /usr/local/
-      - "{{.SUDO}} ln -sf /usr/local/go/bin/go /usr/bin/go"
-      - "{{.SUDO}} ln -sf /usr/local/go/bin/gofmt /usr/bin/gofmt"
-      - go version
+      # - curl -sSL "https://go.dev/dl/go{{.GO_VER}}.linux-{{.ARCH}}.tar.gz" | {{.SUDO}} tar -xz -C /usr/local/
+      # - "{{.SUDO}} ln -sf /usr/local/go/bin/go /usr/bin/go"
+      # - "{{.SUDO}} ln -sf /usr/local/go/bin/gofmt /usr/bin/gofmt"
+      - apt install -y golang-go
+      - GOTOOLCHAIN=local go version
+      
+  install:go:yum:
+    internal: true
+    status:
+      - command -v go
+    cmds:
+      - echo "Installing Go {{.GO_VER}} for {{.ARCH}}..."
+      - yum install -y golang-go
+      - GOTOOLCHAIN=local go version
 
   install:upx:
     internal: true
@@ -151,11 +166,15 @@ tasks:
     status:
       - test -f {{.GOPATH}}/bin/bpf2go
       - test -f {{.GOPATH}}/bin/lefthook
+    vars:
+      GORELEASER_VER: "v2.13.3"
     cmds:
-      - go get -tool github.com/cilium/ebpf/cmd/bpf2go@latest
+      - go install github.com/cilium/ebpf/cmd/bpf2go@latest
       - "{{.SUDO}} ln -sf {{.GOPATH}}/bin/bpf2go /usr/bin/bpf2go"
       - "{{.SUDO}} npm i -g @evilmartians/lefthook"
-      - "{{.SUDO}} npm i -g @goreleaser/goreleaser"
+      # - "{{.SUDO}} npm i -g @goreleaser/goreleaser"
+      - go install github.com/goreleaser/goreleaser/v2@{{.GORELEASER_VER}}
+      - "{{.SUDO}} ln -sf {{.GOPATH}}/bin/goreleaser /usr/bin/goreleaser"
 
   install:pnpm:
     internal: true
@@ -196,9 +215,17 @@ tasks:
       - command -v gosec
       - command -v golangci-lint
       - command -v gofmt
+    vars:
+      LINT_VER: "latest"
+      STATICCHECK_VER: "latest"
+      GOSEC_VER: "latest"
     cmds:
-      - go get -tool github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-      - go get -tool honnef.co/go/tools/cmd/staticcheck@latest
+      - go install github.com/golangci/golangci-lint/cmd/golangci-lint@{{.LINT_VER}}
+      - "{{.SUDO}} ln -sf {{.GOPATH}}/bin/golangci-lint /usr/bin/golangci-lint"
+      - go install honnef.co/go/tools/cmd/staticcheck@{{.STATICCHECK_VER}}
+      - "{{.SUDO}} ln -sf {{.GOPATH}}/bin/staticcheck /usr/bin/staticcheck"
+      - go install github.com/securego/gosec/v2/cmd/gosec@{{.GOSEC_VER}}
+      - "{{.SUDO}} ln -sf {{.GOPATH}}/bin/gosec /usr/bin/gosec"      
 
   pre-commit:
     desc: pre-commit
