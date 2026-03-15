@@ -45,8 +45,6 @@ tasks:
           {{.SUDO}} apt update
         fi
       - task: install:go:{{.PKG_MGR}} 
-      # - go env -w GOPROXY=https://goproxy.cn,direct
-      # - export GOPROXY=https://goproxy.cn,direct
       - GOTOOLCHAIN=local go env -w GO111MODULE=on
       - GOTOOLCHAIN=local go env -w GOPROXY=https://goproxy.cn,direct
       - GOTOOLCHAIN=local go env -w GOINSECURE="*"
