@@ -607,7 +607,8 @@ const getAggregationVisibleIps = (): { lan: string[]; wan: string[]; unknown: st
 };
 
 // 查询聚合统计 DNS
-// 优先查询局域网IP，然后再查询其他IP
+// 严格按类型分批查询：局域网IP批次中只包含局域网IP，外网IP批次中只包含外网IP
+// 这样可以避免外网IP的慢查询拖累局域网IP的快速查询
 const queryAggregationDns = async (forceQueryAll = false) => {
   if (!enableAggregationDns.value || aggregationQuerying.value) return;
   const { lan, wan, unknown, allNeedsQuery } = getAggregationVisibleIps();
@@ -617,75 +618,112 @@ const queryAggregationDns = async (forceQueryAll = false) => {
 
   aggregationQuerying.value = true;
   try {
-    // 第一步：优先批量查询局域网IP（这些通常更快响应）
+    // 并行启动三个类型的查询，但每个类型内部是串行的
+    // 这样可以保证：
+    // 1. 局域网IP的查询批次中绝对不会混入外网IP
+    // 2. 外网IP的查询批次中绝对不会混入局域网IP
+    // 3. 三个类型并行查询，互不影响
+
+    const queryPromises: Promise<void>[] = [];
+
+    // 局域网IP查询任务
     if (lan.length > 0) {
-      const lanResults = await queryDns(lan);
-      for (const [ip, hostname] of lanResults) {
-        dnsCache.value.set(ip, hostname);
-      }
+      queryPromises.push(
+        queryDns(lan).then(results => {
+          for (const [ip, hostname] of results) {
+            dnsCache.value.set(ip, hostname);
+          }
+        })
+      );
     }
 
-    // 第二步：查询外网IP
+    // 外网IP查询任务（与局域网IP并行，但独立批次）
     if (wan.length > 0) {
-      const wanResults = await queryDns(wan);
-      for (const [ip, hostname] of wanResults) {
-        dnsCache.value.set(ip, hostname);
-      }
+      queryPromises.push(
+        queryDns(wan).then(results => {
+          for (const [ip, hostname] of results) {
+            dnsCache.value.set(ip, hostname);
+          }
+        })
+      );
     }
 
-    // 第三步：查询未知IP
+    // 未知IP查询任务（也与前两者并行，独立批次）
     if (unknown.length > 0) {
-      const unknownResults = await queryDns(unknown);
-      for (const [ip, hostname] of unknownResults) {
-        dnsCache.value.set(ip, hostname);
-      }
+      queryPromises.push(
+        queryDns(unknown).then(results => {
+          for (const [ip, hostname] of results) {
+            dnsCache.value.set(ip, hostname);
+          }
+        })
+      );
     }
 
-    // 如果需要查询全部（初始加载时），构建完整的IP列表
+    // 等待所有类型的第一批查询完成
+    await Promise.all(queryPromises);
+
+    // 如果需要查询全部（初始加载时），对已经缓存的IP进行刷新
+    // 同样严格按类型分开查询
     if (forceQueryAll) {
-      const allIps: string[] = [];
+      // 构建每个类型的完整IP列表（用于筛选已缓存的IP）
+      const allLanIps: string[] = [];
+      const allWanIps: string[] = [];
+      const allUnknownIps: string[] = [];
+
       if (aggregationData.value) {
-        for (const group of [aggregationData.value.lan, aggregationData.value.wan, aggregationData.value.unknown]) {
-          if (!group || !group.ips) continue;
-          for (const ipStats of group.ips) {
-            allIps.push(ipStats.ip);
-          }
+        for (const ipStats of aggregationData.value.lan.ips) {
+          allLanIps.push(ipStats.ip);
+        }
+        for (const ipStats of aggregationData.value.wan.ips) {
+          allWanIps.push(ipStats.ip);
+        }
+        for (const ipStats of aggregationData.value.unknown.ips) {
+          allUnknownIps.push(ipStats.ip);
         }
       }
 
-      // 查询那些已经缓存但为了刷新而过期的IP
-      const remainingIps = allIps.filter(ip => !allNeedsQuery.includes(ip));
-      if (remainingIps.length > 0) {
-        // 分批查询：先局域网，再外网，最后未知
-        const remainingLan = remainingIps.filter(ip =>
-          aggregationData.value?.lan.ips.some(stats => stats.ip === ip)
-        );
-        const remainingWan = remainingIps.filter(ip =>
-          aggregationData.value?.wan.ips.some(stats => stats.ip === ip)
-        );
-        const remainingUnknown = remainingIps.filter(ip =>
-          aggregationData.value?.unknown.ips.some(stats => stats.ip === ip)
-        );
+      // 筛选出每个类型中已经缓存的IP（用于刷新）
+      const remainingLan = allLanIps.filter(ip => !lan.includes(ip));
+      const remainingWan = allWanIps.filter(ip => !wan.includes(ip));
+      const remainingUnknown = allUnknownIps.filter(ip => !unknown.includes(ip));
 
-        if (remainingLan.length > 0) {
-          const results = await queryDns(remainingLan);
-          for (const [ip, hostname] of results) {
-            dnsCache.value.set(ip, hostname);
-          }
-        }
-        if (remainingWan.length > 0) {
-          const results = await queryDns(remainingWan);
-          for (const [ip, hostname] of results) {
-            dnsCache.value.set(ip, hostname);
-          }
-        }
-        if (remainingUnknown.length > 0) {
-          const results = await queryDns(remainingUnknown);
-          for (const [ip, hostname] of results) {
-            dnsCache.value.set(ip, hostname);
-          }
-        }
+      const refreshPromises: Promise<void>[] = [];
+
+      // 刷新局域网IP（独立批次，绝不混入其他类型）
+      if (remainingLan.length > 0) {
+        refreshPromises.push(
+          queryDns(remainingLan).then(results => {
+            for (const [ip, hostname] of results) {
+              dnsCache.value.set(ip, hostname);
+            }
+          })
+        );
       }
+
+      // 刷新外网IP（独立批次，绝不混入其他类型）
+      if (remainingWan.length > 0) {
+        refreshPromises.push(
+          queryDns(remainingWan).then(results => {
+            for (const [ip, hostname] of results) {
+              dnsCache.value.set(ip, hostname);
+            }
+          })
+        );
+      }
+
+      // 刷新未知IP（独立批次，绝不混入其他类型）
+      if (remainingUnknown.length > 0) {
+        refreshPromises.push(
+          queryDns(remainingUnknown).then(results => {
+            for (const [ip, hostname] of results) {
+              dnsCache.value.set(ip, hostname);
+            }
+          })
+        );
+      }
+
+      // 等待所有刷新查询完成
+      await Promise.all(refreshPromises);
     }
   } finally {
     aggregationQuerying.value = false;
@@ -1564,7 +1602,7 @@ onBeforeUnmount(() => {
           <div class="flex items-center gap-2 text-xs sm:text-sm shrink-0 md:flex-1 md:justify-center">
             <span class="text-slate-400">流量统计起始时间:</span>
             <span class="text-slate-300 font-mono">{{ formatCaptureStartTime(aggregationData?.capture_start_at)
-              }}</span>
+            }}</span>
           </div>
           <!-- 全局搜索框（右侧） -->
           <div class="relative w-full md:w-auto">
