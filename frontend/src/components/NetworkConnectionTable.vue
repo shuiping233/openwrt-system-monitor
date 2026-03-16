@@ -75,38 +75,70 @@ const getIpv6Display = (ip: string, ipv6Prefix: boolean = false): string => {
 };
 
 // 获取连接列表表格中当前显示的 IP 地址（仅当前页）
-const getConnectionsVisibleIps = (): string[] => {
-  const ips: string[] = [];
+// 优先返回未在全局缓存中的IP（需要查询的）
+const getConnectionsVisibleIps = (): { all: string[]; needsQuery: string[] } => {
+  const allIps: string[] = [];
+  const needsQueryIps: string[] = [];
+
   // table 在下方定义，使用 try-catch 避免初始化时出错
   try {
     const visibleRows = table.getPaginationRowModel().rows;
     for (const row of visibleRows) {
       const sourceIp = row.original.source_ip;
       const destIp = row.original.destination_ip;
-      if (!dnsCache.value.has(sourceIp)) {
-        ips.push(sourceIp);
+
+      allIps.push(sourceIp);
+      allIps.push(destIp);
+
+      // 检查是否在全局缓存中（使用 getCachedHostname 检查缓存是否过期）
+      const sourceCached = getCachedHostname(sourceIp);
+      const destCached = getCachedHostname(destIp);
+
+      if (!sourceCached && !dnsCache.value.has(sourceIp)) {
+        needsQueryIps.push(sourceIp);
       }
-      if (!dnsCache.value.has(destIp)) {
-        ips.push(destIp);
+      if (!destCached && !dnsCache.value.has(destIp)) {
+        needsQueryIps.push(destIp);
       }
     }
   } catch (e) {
     // table 尚未初始化
   }
-  return [...new Set(ips)]; // 去重
+
+  return {
+    all: [...new Set(allIps)],
+    needsQuery: [...new Set(needsQueryIps)]
+  };
 };
 
 // 查询连接列表 DNS
-const queryConnectionsDns = async () => {
+// 优先查询未缓存的IP，然后查询所有IP
+const queryConnectionsDns = async (forceQueryAll = false) => {
   if (!enableConnectionsDns.value || connectionsQuerying.value) return;
-  const ips = getConnectionsVisibleIps();
-  if (ips.length === 0) return;
+  const { all, needsQuery } = getConnectionsVisibleIps();
+
+  // 如果没有需要查询的IP，且不是强制查询全部，则直接返回
+  if (needsQuery.length === 0 && !forceQueryAll) return;
 
   connectionsQuerying.value = true;
   try {
-    const results = await queryDns(ips);
-    for (const [ip, hostname] of results) {
-      dnsCache.value.set(ip, hostname);
+    // 优先批量查询需要查询的IP（缓存过期或未请求的）
+    if (needsQuery.length > 0) {
+      const priorityResults = await queryDns(needsQuery);
+      for (const [ip, hostname] of priorityResults) {
+        dnsCache.value.set(ip, hostname);
+      }
+    }
+
+    // 如果需要查询全部（初始加载时），再查询其他IP
+    if (forceQueryAll && all.length > needsQuery.length) {
+      const remainingIps = all.filter(ip => !needsQuery.includes(ip));
+      if (remainingIps.length > 0) {
+        const otherResults = await queryDns(remainingIps);
+        for (const [ip, hostname] of otherResults) {
+          dnsCache.value.set(ip, hostname);
+        }
+      }
     }
   } finally {
     connectionsQuerying.value = false;
@@ -539,34 +571,121 @@ const aggregationData = computed((): { capture_start_at: string, lan: GroupStats
 });
 
 // 获取聚合统计表格中当前显示的 IP 地址
-const getAggregationVisibleIps = (): string[] => {
-  const ips: string[] = [];
-  // 安全检查：确保 aggregationData 已初始化
-  if (!aggregationData.value) return ips;
+// 返回按优先级排序的IP列表（局域网IP优先）
+const getAggregationVisibleIps = (): { lan: string[]; wan: string[]; unknown: string[]; allNeedsQuery: string[] } => {
+  const lan: string[] = [];
+  const wan: string[] = [];
+  const unknown: string[] = [];
+  const allNeedsQuery: string[] = [];
 
-  // 遍历所有分组的 IP
-  for (const group of [aggregationData.value.lan, aggregationData.value.wan, aggregationData.value.unknown]) {
-    if (!group || !group.ips) continue;
-    for (const ipStats of group.ips) {
-      if (!dnsCache.value.has(ipStats.ip)) {
-        ips.push(ipStats.ip);
+  // 安全检查：确保 aggregationData 已初始化
+  if (!aggregationData.value) {
+    return { lan, wan, unknown, allNeedsQuery };
+  }
+
+  // 按分组遍历，优先收集局域网IP
+  const groups: { data: typeof aggregationData.value.lan; target: string[] }[] = [
+    { data: aggregationData.value.lan, target: lan },
+    { data: aggregationData.value.wan, target: wan },
+    { data: aggregationData.value.unknown, target: unknown },
+  ];
+
+  for (const { data, target } of groups) {
+    if (!data || !data.ips) continue;
+    for (const ipStats of data.ips) {
+      const ip = ipStats.ip;
+      // 检查是否在全局缓存中
+      const cached = getCachedHostname(ip);
+      if (!cached && !dnsCache.value.has(ip)) {
+        target.push(ip);
+        allNeedsQuery.push(ip);
       }
     }
   }
-  return ips;
+
+  return { lan, wan, unknown, allNeedsQuery };
 };
 
 // 查询聚合统计 DNS
-const queryAggregationDns = async () => {
+// 优先查询局域网IP，然后再查询其他IP
+const queryAggregationDns = async (forceQueryAll = false) => {
   if (!enableAggregationDns.value || aggregationQuerying.value) return;
-  const ips = getAggregationVisibleIps();
-  if (ips.length === 0) return;
+  const { lan, wan, unknown, allNeedsQuery } = getAggregationVisibleIps();
+
+  // 如果没有需要查询的IP，且不是强制查询全部，则直接返回
+  if (allNeedsQuery.length === 0 && !forceQueryAll) return;
 
   aggregationQuerying.value = true;
   try {
-    const results = await queryDns(ips);
-    for (const [ip, hostname] of results) {
-      dnsCache.value.set(ip, hostname);
+    // 第一步：优先批量查询局域网IP（这些通常更快响应）
+    if (lan.length > 0) {
+      const lanResults = await queryDns(lan);
+      for (const [ip, hostname] of lanResults) {
+        dnsCache.value.set(ip, hostname);
+      }
+    }
+
+    // 第二步：查询外网IP
+    if (wan.length > 0) {
+      const wanResults = await queryDns(wan);
+      for (const [ip, hostname] of wanResults) {
+        dnsCache.value.set(ip, hostname);
+      }
+    }
+
+    // 第三步：查询未知IP
+    if (unknown.length > 0) {
+      const unknownResults = await queryDns(unknown);
+      for (const [ip, hostname] of unknownResults) {
+        dnsCache.value.set(ip, hostname);
+      }
+    }
+
+    // 如果需要查询全部（初始加载时），构建完整的IP列表
+    if (forceQueryAll) {
+      const allIps: string[] = [];
+      if (aggregationData.value) {
+        for (const group of [aggregationData.value.lan, aggregationData.value.wan, aggregationData.value.unknown]) {
+          if (!group || !group.ips) continue;
+          for (const ipStats of group.ips) {
+            allIps.push(ipStats.ip);
+          }
+        }
+      }
+
+      // 查询那些已经缓存但为了刷新而过期的IP
+      const remainingIps = allIps.filter(ip => !allNeedsQuery.includes(ip));
+      if (remainingIps.length > 0) {
+        // 分批查询：先局域网，再外网，最后未知
+        const remainingLan = remainingIps.filter(ip =>
+          aggregationData.value?.lan.ips.some(stats => stats.ip === ip)
+        );
+        const remainingWan = remainingIps.filter(ip =>
+          aggregationData.value?.wan.ips.some(stats => stats.ip === ip)
+        );
+        const remainingUnknown = remainingIps.filter(ip =>
+          aggregationData.value?.unknown.ips.some(stats => stats.ip === ip)
+        );
+
+        if (remainingLan.length > 0) {
+          const results = await queryDns(remainingLan);
+          for (const [ip, hostname] of results) {
+            dnsCache.value.set(ip, hostname);
+          }
+        }
+        if (remainingWan.length > 0) {
+          const results = await queryDns(remainingWan);
+          for (const [ip, hostname] of results) {
+            dnsCache.value.set(ip, hostname);
+          }
+        }
+        if (remainingUnknown.length > 0) {
+          const results = await queryDns(remainingUnknown);
+          for (const [ip, hostname] of results) {
+            dnsCache.value.set(ip, hostname);
+          }
+        }
+      }
     }
   } finally {
     aggregationQuerying.value = false;
@@ -602,9 +721,9 @@ const stopDnsPolling = () => {
 watch([enableAggregationDns, enableConnectionsDns], ([aggEnabled, connEnabled]) => {
   if (aggEnabled || connEnabled) {
     startDnsPolling();
-    // 立即执行一次查询
-    if (aggEnabled) queryAggregationDns();
-    if (connEnabled) queryConnectionsDns();
+    // 立即执行一次查询（首次加载时使用 forceQueryAll 批量查询所有IP）
+    if (aggEnabled) queryAggregationDns(true);
+    if (connEnabled) queryConnectionsDns(true);
   } else {
     stopDnsPolling();
   }
@@ -617,6 +736,26 @@ watch(() => settings.dns_poll_interval, () => {
     startDnsPolling();
   }
 });
+
+// 监听聚合统计数据变化，立即批量查询DNS（优先查询未缓存的IP）
+watch(() => props.aggregationData, () => {
+  if (enableAggregationDns.value) {
+    // 使用 nextTick 确保数据已渲染，然后立即批量查询
+    nextTick(() => {
+      queryAggregationDns(true);
+    });
+  }
+}, { immediate: true });
+
+// 监听连接数据变化，立即批量查询DNS（优先查询未缓存的IP）
+watch(() => props.connectionData, () => {
+  if (enableConnectionsDns.value) {
+    // 使用 nextTick 确保数据已渲染，然后立即批量查询
+    nextTick(() => {
+      queryConnectionsDns(true);
+    });
+  }
+}, { immediate: true });
 
 // ================= 7. 辅助函数 =================
 const formatIP = (ip: string | undefined, family: string | undefined): string => {
