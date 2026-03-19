@@ -1516,29 +1516,7 @@ const getConnectionSortIcon = (columnId: string): string => {
   return sorting.value[0].desc ? '↓' : '↑';
 };
 
-const ipHeader = ref(null);
-const ipWidth = ref(0);
-let observer = null;
 
-const updateWidth = () => {
-  if (ipHeader.value) {
-    // getBoundingClientRect 可以拿到最精准的浮点数宽度
-    ipWidth.value = ipHeader.value.getBoundingClientRect().width;
-  }
-};
-
-onMounted(() => {
-  updateWidth();
-  // 使用 ResizeObserver 监听 th 的宽度变化（比如窗口缩放、侧边栏收起等）
-  observer = new ResizeObserver(updateWidth);
-  if (ipHeader.value) {
-    observer.observe(ipHeader.value);
-  }
-});
-
-onBeforeUnmount(() => {
-  if (observer) observer.disconnect();
-});
 
 </script>
 
@@ -1602,7 +1580,7 @@ onBeforeUnmount(() => {
           <div class="flex items-center gap-2 text-xs sm:text-sm shrink-0 md:flex-1 md:justify-center">
             <span class="text-slate-400">流量统计起始时间:</span>
             <span class="text-slate-300 font-mono">{{ formatCaptureStartTime(aggregationData?.capture_start_at)
-            }}</span>
+              }}</span>
           </div>
           <!-- 全局搜索框（右侧） -->
           <div class="relative w-full md:w-auto">
@@ -1634,156 +1612,125 @@ onBeforeUnmount(() => {
           </nav>
         </div>
 
-        <!-- 当前选中分组的汇总信息 -->
-        <div class="py-3 bg-slate-700/20 border-b border-slate-700">
-          <div class="flex items-center text-center py-3 bg-slate-700/20 border-b border-slate-700">
-
-            <div :style="{ width: ipWidth + 'px' }" class="flex flex-col gap-1">
-              <span class="uppercase tracking-wider"></span>
-              <span class="font-semibold leading-none">
-              </span>
-            </div>
-
-            <div class="flex-1 grid grid-cols-3 md:grid-cols-9 gap-4 ml-4">
-              <div class="w-[98%] flex flex-col gap-1">
-                <span class="text-[10px] text-slate-500 uppercase tracking-wider">总实时速率</span>
-                <span class="text-slate-200 font-mono text-sm font-semibold leading-none">
-                  {{ formatThroughput(aggregationData[activeAggregationTab].totalThroughput) }}
-                </span>
-              </div>
-
-              <div class="w-[95%] flex flex-col gap-1">
-                <span class="text-[10px] text-slate-500 uppercase tracking-wider">上行速率</span>
-                <span class="text-orange-400 font-mono text-sm font-semibold leading-none">
-                  {{ formatThroughput(aggregationData[activeAggregationTab].UploadThroughput) }}
-                </span>
-              </div>
-
-              <div class="w-[80%] flex flex-col gap-1">
-                <span class="text-[10px] text-slate-500 uppercase tracking-wider">下行速率</span>
-                <span class="text-cyan-400 font-mono text-sm font-semibold leading-none">
-                  {{ formatThroughput(aggregationData[activeAggregationTab].DownloadThroughput) }}
-                </span>
-              </div>
-
-              <div class="flex flex-col gap-1">
-                <span class="text-[10px] text-slate-500 uppercase tracking-wider">累计上下行流量</span>
-                <span class="text-slate-200 font-mono text-sm font-semibold leading-none">
-                  {{ formatTraffic(aggregationData[activeAggregationTab].totalTraffic) }}
-                </span>
-              </div>
-
-              <div class="w-[140%] flex flex-col gap-1">
-                <span class="text-[10px] text-slate-500 uppercase tracking-wider">累计上行流量</span>
-                <span class="text-slate-200 font-mono text-sm font-semibold leading-none">
-                  {{ formatTraffic(aggregationData[activeAggregationTab].totalUpload) }}
-                </span>
-              </div>
-
-              <div class="w-[165%] flex flex-col gap-1">
-                <span class="text-[10px] text-slate-500 uppercase tracking-wider">累计下行流量</span>
-                <span class="text-slate-200 font-mono text-sm font-semibold leading-none">
-                  {{ formatTraffic(aggregationData[activeAggregationTab].totalDownload) }}
-                </span>
-              </div>
-
-              <div class="w-[162%] flex flex-col gap-1  border-slate-700/50">
-                <span class="text-[10px] text-slate-500 uppercase tracking-wider">TCP连接</span>
-                <span class="text-blue-400 font-mono text-sm font-semibold leading-none">
-                  {{ aggregationData[activeAggregationTab].totalTcp }}
-                </span>
-              </div>
-
-              <div class="w-[135%] flex flex-col gap-1">
-                <span class="text-[10px] text-slate-500 uppercase tracking-wider">UDP连接</span>
-                <span class="text-violet-400 font-mono text-sm font-semibold leading-none">
-                  {{ aggregationData[activeAggregationTab].totalUdp }}
-                </span>
-              </div>
-
-              <div class="w-[107%] flex flex-col gap-1">
-                <span class="text-[10px] text-slate-500 uppercase tracking-wider">其他连接</span>
-                <span class="text-slate-200 font-mono text-sm font-semibold leading-none">
-                  {{ aggregationData[activeAggregationTab].totalOther }}
-                </span>
-              </div>
-            </div>
-
-          </div>
-        </div>
-
         <div class="overflow-x-auto">
           <table class="w-full text-sm text-center border-collapse">
             <thead class="bg-slate-700/50 text-slate-300">
               <tr>
-                <th ref="ipHeader" @click="toggleAggregationSort('ip')"
+                <th @click="toggleAggregationSort('ip')"
                   class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors">
-                  <div class="flex items-center justify-center gap-1">
-                    IP 地址
-                    <span class="text-slate-400">{{ getSortIcon('ip') }}</span>
+                  <div class="flex flex-col items-center gap-1">
+                    <div class="flex items-center justify-center gap-1">
+                      IP 地址
+                      <span class="text-slate-400">{{ getSortIcon('ip') }}</span>
+                    </div>
                   </div>
                 </th>
                 <th @click="toggleAggregationSort('totalThroughput')"
                   class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors">
-                  <div class="flex items-center justify-center gap-1">
-                    总实时速率
-                    <span class="text-slate-400">{{ getSortIcon('totalThroughput') }}</span>
+                  <div class="flex flex-col items-center gap-1">
+                    <div class="flex items-center justify-center gap-1">
+                      总实时速率
+                      <span class="text-slate-400">{{ getSortIcon('totalThroughput') }}</span>
+                    </div>
+                    <span class="text-slate-200 font-mono font-semibold">
+                      {{ formatThroughput(aggregationData[activeAggregationTab].totalThroughput) }}
+                    </span>
                   </div>
                 </th>
                 <th @click="toggleAggregationSort('uploadThroughput')"
                   class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors">
-                  <div class="flex items-center justify-center gap-1">
-                    实时上行
-                    <span class="text-slate-400">{{ getSortIcon('uploadThroughput') }}</span>
+                  <div class="flex flex-col items-center gap-1">
+                    <div class="flex items-center justify-center gap-1">
+                      实时上行
+                      <span class="text-slate-400">{{ getSortIcon('uploadThroughput') }}</span>
+                    </div>
+                    <span class="text-orange-400 font-mono font-semibold">
+                      {{ formatThroughput(aggregationData[activeAggregationTab].UploadThroughput) }}
+                    </span>
                   </div>
                 </th>
                 <th @click="toggleAggregationSort('downloadThroughput')"
                   class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors">
-                  <div class="flex items-center justify-center gap-1">
-                    实时下行
-                    <span class="text-slate-400">{{ getSortIcon('downloadThroughput') }}</span>
+                  <div class="flex flex-col items-center gap-1">
+                    <div class="flex items-center justify-center gap-1">
+                      实时下行
+                      <span class="text-slate-400">{{ getSortIcon('downloadThroughput') }}</span>
+                    </div>
+                    <span class="text-cyan-400 font-mono font-semibold">
+                      {{ formatThroughput(aggregationData[activeAggregationTab].DownloadThroughput) }}
+                    </span>
                   </div>
                 </th>
                 <th @click="toggleAggregationSort('totalTraffic')"
                   class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors">
-                  <div class="flex items-center justify-center gap-1">
-                    累计上下行流量
-                    <span class="text-slate-400">{{ getSortIcon('totalTraffic') }}</span>
+                  <div class="flex flex-col items-center gap-1">
+                    <div class="flex items-center justify-center gap-1">
+                      累计上下行流量
+                      <span class="text-slate-400">{{ getSortIcon('totalTraffic') }}</span>
+                    </div>
+                    <span class="text-slate-200 font-mono font-semibold">
+                      {{ formatTraffic(aggregationData[activeAggregationTab].totalTraffic) }}
+                    </span>
                   </div>
                 </th>
                 <th @click="toggleAggregationSort('totalUpload')"
                   class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors">
-                  <div class="flex items-center justify-center gap-1">
-                    累计上行流量
-                    <span class="text-slate-400">{{ getSortIcon('totalUpload') }}</span>
+                  <div class="flex flex-col items-center gap-1">
+                    <div class="flex items-center justify-center gap-1">
+                      累计上行流量
+                      <span class="text-slate-400">{{ getSortIcon('totalUpload') }}</span>
+                    </div>
+                    <span class="text-slate-200 font-mono font-semibold">
+                      {{ formatTraffic(aggregationData[activeAggregationTab].totalUpload) }}
+                    </span>
                   </div>
                 </th>
                 <th @click="toggleAggregationSort('totalDownload')"
                   class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors">
-                  <div class="flex items-center justify-center gap-1">
-                    累计下行流量
-                    <span class="text-slate-400">{{ getSortIcon('totalDownload') }}</span>
+                  <div class="flex flex-col items-center gap-1">
+                    <div class="flex items-center justify-center gap-1">
+                      累计下行流量
+                      <span class="text-slate-400">{{ getSortIcon('totalDownload') }}</span>
+                    </div>
+                    <span class="text-slate-200 font-mono font-semibold">
+                      {{ formatTraffic(aggregationData[activeAggregationTab].totalDownload) }}
+                    </span>
                   </div>
                 </th>
                 <th @click="toggleAggregationSort('tcp')"
                   class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors">
-                  <div class="flex items-center justify-center gap-1">
-                    TCP 连接
-                    <span class="text-slate-400">{{ getSortIcon('tcp') }}</span>
+                  <div class="flex flex-col items-center gap-1">
+                    <div class="flex items-center justify-center gap-1">
+                      TCP 连接
+                      <span class="text-slate-400">{{ getSortIcon('tcp') }}</span>
+                    </div>
+                    <span class="text-blue-400 font-mono font-semibold">
+                      {{ aggregationData[activeAggregationTab].totalTcp }}
+                    </span>
                   </div>
                 </th>
                 <th @click="toggleAggregationSort('udp')"
                   class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors">
-                  <div class="flex items-center justify-center gap-1">
-                    UDP 连接
-                    <span class="text-slate-400">{{ getSortIcon('udp') }}</span>
+                  <div class="flex flex-col items-center gap-1">
+                    <div class="flex items-center justify-center gap-1">
+                      UDP 连接
+                      <span class="text-slate-400">{{ getSortIcon('udp') }}</span>
+                    </div>
+                    <span class="text-violet-400 font-mono font-semibold">
+                      {{ aggregationData[activeAggregationTab].totalUdp }}
+                    </span>
                   </div>
                 </th>
                 <th @click="toggleAggregationSort('other')"
                   class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors">
-                  <div class="flex items-center justify-center gap-1">
-                    其他连接
-                    <span class="text-slate-400">{{ getSortIcon('other') }}</span>
+                  <div class="flex flex-col items-center gap-1">
+                    <div class="flex items-center justify-center gap-1">
+                      其他连接
+                      <span class="text-slate-400">{{ getSortIcon('other') }}</span>
+                    </div>
+                    <span class="text-slate-200 font-mono font-semibold">
+                      {{ aggregationData[activeAggregationTab].totalOther }}
+                    </span>
                   </div>
                 </th>
               </tr>
