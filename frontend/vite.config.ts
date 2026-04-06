@@ -72,6 +72,22 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rolldownOptions: {
+      output: {
+        // 2. 强制拆包策略，把 node_modules 里的第三方库拆分成独立文件
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            // 把 echarts 单独拆出来，不要跟业务代码混在一起
+            if (id.includes("echarts")) {
+              return "vendor-echarts";
+            }
+            return "vendor";
+          }
+        },
+      },
+    },
+  },
   server: {
     proxy: {
       // 匹配所有以 /metric 开头的请求

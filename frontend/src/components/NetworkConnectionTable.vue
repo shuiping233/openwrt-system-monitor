@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, h, watch, reactive, onMounted, onUnmounted, nextTick, onBeforeUnmount } from 'vue';
+import { ref, computed, h, watch, reactive, onMounted, onUnmounted, nextTick } from 'vue';
 import {
   useVueTable,
   getCoreRowModel,
@@ -16,7 +16,7 @@ import { IpAddressTypeList } from '../model';
 import { convertToBytes, BytesFixed, formatIOBytes, normalizeToBytes, formatDataBytes } from '../utils/convert';
 import { useToast } from '../useToast';
 import { useDatabase } from '../useDatabase';
-import { useSettings, Settings } from '../useSettings';
+import { useSettings } from '../useSettings';
 import { useDnsQuery } from '../useDnsQuery';
 import PaginationControls from './PaginationControls.vue';
 

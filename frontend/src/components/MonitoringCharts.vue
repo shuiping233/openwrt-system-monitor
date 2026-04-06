@@ -8,16 +8,14 @@ import {
   TitleComponent,
   TooltipComponent,
   GridComponent,
-  DatasetComponent,
-  TransformComponent,
   ToolboxComponent,
   LegendComponent
 } from 'echarts/components';
 import type { EChartsOption } from 'echarts';
 import { useDatabase } from '../useDatabase';
-import type { HistoryRecord, DynamicApiResponse, StorageData } from '../model';
+import type { DynamicApiResponse, StorageData } from '../model';
 import { TimeRanges } from '../model';
-import { normalizeToBytes, formatIOBytes, BytesFixed, covertDataBytes, convertToBytes } from '../utils/convert';
+import { normalizeToBytes, formatIOBytes, BytesFixed, covertDataBytes } from '../utils/convert';
 import { useSettings } from '../useSettings';
 
 // 注册 ECharts 组件

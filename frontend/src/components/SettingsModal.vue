@@ -234,7 +234,7 @@ watch(() => props.isOpen, (newVal) => {
         </div>
 
         <!-- 底部: 退出按钮 (右下角) -->
-        <div class="px-6 py-4 border-t border-slate-700 flex justify-end bg-slate-800/50 rounded-b-xl flex-shrink-0">
+        <div class="px-6 py-4 border-t border-slate-700 flex justify-end bg-slate-800/50 rounded-b-xl shrink-0">
           <button @click="emit('update:isOpen', false)"
             class="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors text-sm font-medium">
             退出
