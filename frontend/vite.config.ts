@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import vueDevTools from "vite-plugin-vue-devtools";
+import compression from "vite-plugin-compression";
 import vue from "@vitejs/plugin-vue";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
@@ -58,19 +59,31 @@ export default defineConfig({
     // }),
     vueDevTools(),
     tailwindcss(),
+    compression({
+      algorithm: "gzip", // 压缩算法：gzip | brotliCompress
+      ext: ".gz", // 生成的文件后缀
+      threshold: 0, // 压缩阈值，小于该值时不压缩
+      deleteOriginFile: true,
+      // filter: /\.(js|css|html|svg|json)$/i, // 只压缩这些类型
+      filter: () => true,
+      verbose: true, // 打印压缩日志
+      compressionOptions: {
+        level: 9,
+      },
+    }),
   ],
   server: {
     proxy: {
       // 匹配所有以 /metric 开头的请求
       "/metric": {
         target: "http://127.0.0.1:8080", // 转发给 Go 后端的地址
-        // target: 'http://192.168.0.1:81/', // 转发给 Go 后端的地址
+        // target: "http://192.168.0.1:81/", // 转发给 Go 后端的地址
         changeOrigin: true,
         rewrite: (path) => path, // 保持路径不变
       },
       "/dns": {
         target: "http://127.0.0.1:8080", // 转发给 Go 后端的地址
-        // target: 'http://192.168.0.1:81/', // 转发给 Go 后端的地址
+        // target: "http://192.168.0.1:81/", // 转发给 Go 后端的地址
         changeOrigin: true,
         rewrite: (path) => path, // 保持路径不变
       },
