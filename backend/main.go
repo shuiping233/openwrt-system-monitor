@@ -7,185 +7,19 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
-	"fmt"
-	"io/fs"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
 	frontend "openwrt-diskio-api"
-	"openwrt-diskio-api/backend/dns"
-	"openwrt-diskio-api/backend/metric"
 	"openwrt-diskio-api/backend/model"
-
-	"github.com/spf13/afero"
+	"openwrt-diskio-api/backend/routers"
 )
-
-const workerNumber = 3
-
-var (
-	reader     = metric.FsReader{Fs: afero.NewOsFs()}
-	runner     = metric.CommandRunner{}
-	background = metric.BackgroundService{
-		Reader:          reader,
-		Runner:          runner,
-		UpdateEventChan: make(chan string, workerNumber),
-	}
-	dnsQueryService *dns.DnsQueryService
-)
-
-func setJsonHeader(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json")
-}
-func setGzipHeader(w http.ResponseWriter) {
-	w.Header().Set("Content-Encoding", "gzip")
-}
-
-func DynamicMetricHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "only GET", http.StatusMethodNotAllowed)
-		return
-	}
-
-	setJsonHeader(w)
-
-	jsonBytes, isGzip := background.GetJsonBytes(model.JsonCacheKeyDynamicMetric)
-	if len(jsonBytes) == 0 {
-		var err error
-		jsonBytes, err = json.Marshal(&model.DynamicMetric{})
-		if err != nil {
-			errMsg := fmt.Sprintf("json marshal error : %s", err.Error())
-			http.Error(w, errMsg, http.StatusInternalServerError)
-			return
-		}
-	}
-	if isGzip {
-		setGzipHeader(w)
-	}
-	_, _ = w.Write(jsonBytes)
-	background.DynamicMetricServiceActiveSignal()
-}
-
-func NetworkConnectionMetricHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "only GET", http.StatusMethodNotAllowed)
-		return
-	}
-
-	setJsonHeader(w)
-
-	jsonBytes, isGzip := background.GetJsonBytes(model.JsonCacheKeyNetworkConnectionMetric)
-	if len(jsonBytes) == 0 {
-		var err error
-		jsonBytes, err = json.Marshal(&model.NetworkConnectionMetric{})
-		if err != nil {
-			errMsg := fmt.Sprintf("json marshal error : %s", err.Error())
-			http.Error(w, errMsg, http.StatusInternalServerError)
-			return
-		}
-	}
-	if isGzip {
-		setGzipHeader(w)
-	}
-	_, _ = w.Write(jsonBytes)
-}
-
-func StaticMetricHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "only GET", http.StatusMethodNotAllowed)
-		return
-	}
-	setJsonHeader(w)
-
-	jsonBytes, isGzip := background.GetJsonBytes(model.JsonCacheKeyStaticMetric)
-	if len(jsonBytes) == 0 {
-		var err error
-		jsonBytes, err = json.Marshal(&model.StaticMetric{})
-		if err != nil {
-			errMsg := fmt.Sprintf("json marshal error : %s", err.Error())
-			http.Error(w, errMsg, http.StatusInternalServerError)
-			return
-		}
-	}
-	if isGzip {
-		setGzipHeader(w)
-	}
-	_, _ = w.Write(jsonBytes)
-}
-func AggregationTrafficHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "only GET", http.StatusMethodNotAllowed)
-		return
-	}
-	setJsonHeader(w)
-
-	jsonBytes, isGzip := background.GetJsonBytes(model.JsonCacheKeyAggregationTraffic)
-	if len(jsonBytes) == 0 {
-		var err error
-		jsonBytes, err = json.Marshal(&model.AggregationTrafficMetric{})
-		if err != nil {
-			errMsg := fmt.Sprintf("json marshal error : %s", err.Error())
-			http.Error(w, errMsg, http.StatusInternalServerError)
-			return
-		}
-	}
-	if isGzip {
-		setGzipHeader(w)
-	}
-	_, _ = w.Write(jsonBytes)
-	background.AggregationTrafficServiceActiveSignal()
-}
-func DnsQueryHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "only GET", http.StatusMethodNotAllowed)
-		return
-	}
-
-	query := r.URL.Query()
-	ipParams, ok := query["ip"]
-	if !ok {
-		http.Error(w, "missing \"ip\" query parameter", http.StatusBadRequest)
-		return
-	}
-
-	var ips []string
-	for _, item := range ipParams {
-		if strings.Contains(item, ",") {
-			ips = append(ips, strings.Split(item, ",")...)
-		} else {
-			ips = append(ips, item)
-		}
-	}
-
-	finalIps := make([]string, 0, len(ips))
-	for _, ip := range ips {
-		trimmed := strings.TrimSpace(ip)
-		if trimmed != "" {
-			finalIps = append(finalIps, trimmed)
-		}
-	}
-
-	if len(finalIps) == 0 {
-		http.Error(w, "\"ip\" parameter is empty", http.StatusBadRequest)
-		return
-	}
-
-	results, err := dnsQueryService.LookupAddr(finalIps)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	setJsonHeader(w)
-	_ = json.NewEncoder(w).Encode(results)
-}
 
 func PrettyExit(httpServer *http.Server) {
 	sigChan := make(chan os.Signal, 1)
@@ -230,20 +64,17 @@ func main() {
 	log.Printf("dnsServerIp : %v", *dnsServerIp)
 	log.Printf("dnsQueryTimeout : %v", *dnsQueryTimeout)
 
-	background.SetConfig(
+	routers.InitAllMetricService(
 		*staticMetricInterval,
 		*dynamicMetricInterval,
 		*networkConnectionInterval,
 		*trafficCaptureInterfaceName,
 		*trafficKeyExpiredTime,
 	)
-	dnsQueryService = dns.NewDnsQueryService(
+	routers.InitDnsQueryService(
 		*dnsServerIp,
 		*dnsQueryTimeout,
 	)
-
-	background.UpdateStaticMetric()
-	background.UpdateNetworkConnectionDetails()
 
 	canExit := make(chan struct{})
 	ctx, cancel := context.WithCancel(context.Background())
@@ -261,24 +92,22 @@ func main() {
 		if err := httpServer.Shutdown(shutdownCtx); err != nil {
 			log.Printf("HTTP Server releasing failed: %v", err)
 		}
-		background.Close()
+		routers.Background.Close()
 		close(canExit)
 	}()
 
-	go background.RunDynamicMetricService(ctx)
-	go background.RunAggregationTrafficService(ctx)
-	for index := range workerNumber {
-		go background.Worker(index)
-	}
+	routers.RunAllMetricService(ctx)
 
-	webFS, _ := fs.Sub(frontend.WebEmb, frontend.FrontendDistPath)
-	http.Handle("/", http.FileServer(http.FS(webFS)))
+	// webFS, _ := fs.Sub(frontend.WebEmb, frontend.FrontendDistPath)
+	// http.Handle("/", http.FileServer(http.FS(webFS)))
+	routers.InitFs(frontend.WebEmb, frontend.FrontendDistPath)
+	http.HandleFunc("/", routers.FileServer)
 
-	http.HandleFunc("/metric/dynamic", DynamicMetricHandler)
-	http.HandleFunc("/metric/network_connection", NetworkConnectionMetricHandler)
-	http.HandleFunc("/metric/static", StaticMetricHandler)
-	http.HandleFunc("/metric/aggregation_traffic", AggregationTrafficHandler)
-	http.HandleFunc("/dns/query", DnsQueryHandler)
+	http.HandleFunc("/metric/dynamic", routers.DynamicMetricHandler)
+	http.HandleFunc("/metric/network_connection", routers.NetworkConnectionMetricHandler)
+	http.HandleFunc("/metric/static", routers.StaticMetricHandler)
+	http.HandleFunc("/metric/aggregation_traffic", routers.AggregationTrafficHandler)
+	http.HandleFunc("/dns/query", routers.DnsQueryHandler)
 
 	log.Printf("listen http://%s/", addr)
 	log.Printf("Interface url : http://%s/metric/dynamic", addr)

@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"net/http"
 	"net/netip"
 	"openwrt-diskio-api/backend/model"
 	"slices"
@@ -221,4 +222,11 @@ func GzipBytes(input []byte) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+func SetJsonHeader(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+}
+func SetGzipHeader(w http.ResponseWriter) {
+	w.Header().Set("Content-Encoding", "gzip")
 }
