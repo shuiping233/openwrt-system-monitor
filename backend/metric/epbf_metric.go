@@ -61,8 +61,8 @@ type EbpfNetTrafficService struct {
 	captureInterface    string
 	interfaceIpv4       netip.Addr
 	interfaceIpv4Prefix netip.Prefix
-	interfaceIpv6       netip.Addr
-	interfaceIpv6Prefix netip.Prefix
+	interfaceIpv6       *netip.Addr
+	interfaceIpv6Prefix *netip.Prefix
 	keyExpiredTime      time.Duration
 	activeChan          chan struct{}
 	objs                *bpf.BpfObjects
@@ -100,16 +100,20 @@ func (svc *EbpfNetTrafficService) InitEbpfInterfaceDevice(targetInterface string
 	}
 	log.Printf("Get %q interface ipv4: %q \n", targetInterface, ipv4.String())
 	log.Printf("Get %q interface ipv4Prefix: %q \n", targetInterface, ipv4Prefix.String())
-	ipv6, ipv6Prefix, err := utils.GetInterfaceGuaIpv6Info(targetInterface)
-	if err != nil {
-		return err
-	}
-	log.Printf("Get %q interface ipv6: %q \n", targetInterface, ipv6.String())
-	log.Printf("Get %q interface ipv6Prefix: %q \n", targetInterface, ipv6Prefix.String())
 	svc.interfaceIpv4 = ipv4
 	svc.interfaceIpv4Prefix = ipv4Prefix
-	svc.interfaceIpv6 = ipv6
-	svc.interfaceIpv6Prefix = ipv6Prefix
+
+	ipv6, ipv6Prefix, err := utils.GetInterfaceGuaIpv6Info(targetInterface)
+	if err != nil {
+		svc.interfaceIpv6 = nil
+		svc.interfaceIpv6Prefix = nil
+	} else {
+		log.Printf("Get %q interface ipv6: %q \n", targetInterface, ipv6.String())
+		log.Printf("Get %q interface ipv6Prefix: %q \n", targetInterface, ipv6Prefix.String())
+		svc.interfaceIpv6 = &ipv6
+		svc.interfaceIpv6Prefix = &ipv6Prefix
+
+	}
 
 	if err := rlimit.RemoveMemlock(); err != nil {
 		return fmt.Errorf("Try to remove ebpf memory lock failed: %w", err)
@@ -533,12 +537,16 @@ func (svc *EbpfNetTrafficService) refreshInterfaceInfo() {
 	if err6 != nil {
 		log.Println(err6)
 	}
-	if err4 != nil && err6 != nil {
-		return
-	}
 
 	v4Change := ipv4Prefix != svc.interfaceIpv4Prefix
-	v6Change := ipv6Prefix != svc.interfaceIpv6Prefix
+	v6Change := false
+	if err6 == nil {
+		if svc.interfaceIpv6Prefix == nil {
+			v6Change = true
+		} else {
+			v6Change = ipv6Prefix != *svc.interfaceIpv6Prefix
+		}
+	}
 	if !v4Change && !v6Change {
 		return
 	}
@@ -552,8 +560,8 @@ func (svc *EbpfNetTrafficService) refreshInterfaceInfo() {
 	}
 
 	if err6 == nil && v6Change {
-		svc.interfaceIpv6 = ipv6
-		svc.interfaceIpv6Prefix = ipv6Prefix
+		svc.interfaceIpv6 = &ipv6
+		svc.interfaceIpv6Prefix = &ipv6Prefix
 		log.Printf("[Network] IPv6 Updated: %s (Prefix: %s)", ipv6, ipv6Prefix)
 	}
 }
@@ -658,6 +666,10 @@ func getKtimeNS() uint64 {
 func (svc *EbpfNetTrafficService) IsLanIp(ip netip.Addr) bool {
 	if ip.Is4() {
 		return svc.interfaceIpv4Prefix.Contains(ip)
+	}
+
+	if svc.interfaceIpv6 == nil || svc.interfaceIpv6Prefix == nil {
+		return false
 	}
 
 	if ip.Is6() {
