@@ -112,7 +112,6 @@ func (svc *EbpfNetTrafficService) InitEbpfInterfaceDevice(targetInterface string
 		log.Printf("Get %q interface ipv6Prefix: %q \n", targetInterface, ipv6Prefix.String())
 		svc.interfaceIpv6 = &ipv6
 		svc.interfaceIpv6Prefix = &ipv6Prefix
-
 	}
 
 	if err := rlimit.RemoveMemlock(); err != nil {
@@ -237,7 +236,6 @@ func (svc *EbpfNetTrafficService) trafficAggregateWithDuration(srcAddr netip.Add
 			metric.DownloadRate += rate
 			metric.TotalDownload += delta
 		}
-
 	}
 	// 统计下载
 	if !IsIgnoredAddr(dstAddr) {
