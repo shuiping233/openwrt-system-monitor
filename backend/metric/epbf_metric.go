@@ -25,7 +25,7 @@ import (
 
 const (
 	EbpfBatchLookupSize = 1024
-	SmoothingAlphaRate  = 0.6
+	SmoothingAlphaRate  = 0.8
 )
 
 var (
