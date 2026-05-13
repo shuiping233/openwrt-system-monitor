@@ -13,7 +13,7 @@ import {
 } from '@tanstack/vue-table';
 import type { ConnectionApiResponse, AggregationTrafficResponse, AggregationTrafficDetails, IpAddressType, IpFamilyType } from '../model';
 import { IpAddressTypeList } from '../model';
-import { convertToBytes, BytesFixed, formatIOBytes, normalizeToBytes, formatDataBytes } from '../utils/convert';
+import { convertToBytes, formatMetric, formatIOBytes, normalizeToBytes, formatDataBytes } from '../utils/convert';
 import { useToast } from '../useToast';
 import { useDatabase } from '../useDatabase';
 import { useSettings } from '../useSettings';
@@ -442,12 +442,12 @@ const filterIPStats = (ips: IPStats[], filter: string): IPStats[] => {
     if (hostname && hostname.toLowerCase().includes(lowerFilter)) return true;
 
     // 检查格式化后的流量值（数值+单位）
-    const totalThroughputStr = BytesFixed(ip.totalThroughput.value, ip.totalThroughput.unit) + ip.totalThroughput.unit;
-    const uploadThroughputStr = BytesFixed(ip.uploadThroughput.value, ip.uploadThroughput.unit) + ip.uploadThroughput.unit;
-    const downloadThroughputStr = BytesFixed(ip.downloadThroughput.value, ip.downloadThroughput.unit) + ip.downloadThroughput.unit;
-    const totalTrafficStr = BytesFixed(ip.totalTraffic.value, ip.totalTraffic.unit) + ip.totalTraffic.unit;
-    const totalUploadStr = BytesFixed(ip.totalUpload.value, ip.totalUpload.unit) + ip.totalUpload.unit;
-    const totalDownloadStr = BytesFixed(ip.totalDownload.value, ip.totalDownload.unit) + ip.totalDownload.unit;
+    const totalThroughputStr = formatMetric(ip.totalThroughput.value, ip.totalThroughput.unit);
+    const uploadThroughputStr = formatMetric(ip.uploadThroughput.value, ip.uploadThroughput.unit);
+    const downloadThroughputStr = formatMetric(ip.downloadThroughput.value, ip.downloadThroughput.unit);
+    const totalTrafficStr = formatMetric(ip.totalTraffic.value, ip.totalTraffic.unit);
+    const totalUploadStr = formatMetric(ip.totalUpload.value, ip.totalUpload.unit);
+    const totalDownloadStr = formatMetric(ip.totalDownload.value, ip.totalDownload.unit);
 
     if (totalThroughputStr.toLowerCase().replace(/\s+/g, '').includes(lowerFilter)) return true;
     if (uploadThroughputStr.toLowerCase().replace(/\s+/g, '').includes(lowerFilter)) return true;
@@ -804,18 +804,6 @@ const formatIP = (ip: string | undefined, family: string | undefined): string =>
   return ip;
 };
 
-// 格式化流量显示
-const formatThroughput = (bytes: number): string => {
-  if (bytes === 0) return '0 B';
-  return formatIOBytes(bytes);
-};
-
-// 格式化流量显示
-const formatTraffic = (bytes: number): string => {
-  if (bytes === 0) return '0 B';
-  return formatDataBytes(bytes);
-};
-
 // 复制功能
 const copyInfo = (row: any) => {
   let source_ip: string = row.source_ip
@@ -828,7 +816,7 @@ const copyInfo = (row: any) => {
     destination_ip = getIpDisplay(destination_ip);
   }
 
-  const text = `[${row.ip_family}] ${row.protocol} ${source_ip}:${row.source_port} -> ${destination_ip}:${row.destination_port} | 状态: ${row.state || '-'} | 流量: ${BytesFixed(row.traffic.value, row.traffic.unit)} ${row.traffic.unit} (${row.packets} Pkgs)`;
+  const text = `[${row.ip_family}] ${row.protocol} ${source_ip}:${row.source_port} -> ${destination_ip}:${row.destination_port} | 状态: ${row.state || '-'} | 流量: ${formatMetric(row.traffic.value, row.traffic.unit)} (${row.packets} Pkgs)`;
 
   // 检查浏览器是否支持 Clipboard API
   if (navigator.clipboard && window.isSecureContext) {
@@ -1019,7 +1007,7 @@ const columns = [
     header: '传输情况',
     cell: (info) => {
       const row = info.row.original;
-      return h('span', { class: 'text-slate-300' }, BytesFixed(row.traffic.value, row.traffic.unit) + ' ' + row.traffic.unit + ' (' + row.packets + ' Pkgs.)');
+      return h('span', { class: 'text-slate-300' }, formatMetric(row.traffic.value, row.traffic.unit) + ' (' + row.packets + ' Pkgs.)');
     },
     sortingFn: (rowA, rowB) => {
       const valA = rowA.original.traffic.value || 0;
@@ -1040,8 +1028,8 @@ const columns = [
       const packets = row.original.packets || 0;
 
       // 格式化后的值
-      const formattedValue = BytesFixed(trafficValue, trafficUnit);
-      const fullDisplayValue = `${formattedValue} ${trafficUnit} (${packets} Pkgs.)`;
+      const formattedValue = formatMetric(trafficValue, trafficUnit);
+      const fullDisplayValue = `${formattedValue} (${packets} Pkgs.)`;
 
       // 转换为小写进行比较
       const lowerFilterValue = filterValue.toLowerCase();
@@ -1470,7 +1458,7 @@ const table = useVueTable({
     // 格式化后的流量值（数值+单位）
     const trafficValue = original.traffic?.value || 0;
     const trafficUnit = original.traffic?.unit || 'B';
-    const formattedTraffic = BytesFixed(trafficValue, trafficUnit) + trafficUnit;
+    const formattedTraffic = formatMetric(trafficValue, trafficUnit);
     searchFields.push(formattedTraffic);
     searchFields.push(String(trafficValue));
     searchFields.push(trafficUnit);
@@ -1580,7 +1568,7 @@ const getConnectionSortIcon = (columnId: string): string => {
           <div class="flex items-center gap-2 text-xs sm:text-sm shrink-0 md:flex-1 md:justify-center">
             <span class="text-slate-400">流量统计起始时间:</span>
             <span class="text-slate-300 font-mono">{{ formatCaptureStartTime(aggregationData?.capture_start_at)
-              }}</span>
+            }}</span>
           </div>
           <!-- 全局搜索框（右侧） -->
           <div class="relative w-full md:w-auto">
@@ -1633,7 +1621,7 @@ const getConnectionSortIcon = (columnId: string): string => {
                       <span class="text-slate-400">{{ getSortIcon('totalThroughput') }}</span>
                     </div>
                     <span class="text-slate-200 font-mono font-semibold">
-                      {{ formatThroughput(aggregationData[activeAggregationTab].totalThroughput) }}
+                      {{ formatIOBytes(aggregationData[activeAggregationTab].totalThroughput) }}
                     </span>
                   </div>
                 </th>
@@ -1645,7 +1633,7 @@ const getConnectionSortIcon = (columnId: string): string => {
                       <span class="text-slate-400">{{ getSortIcon('uploadThroughput') }}</span>
                     </div>
                     <span class="text-orange-400 font-mono font-semibold">
-                      {{ formatThroughput(aggregationData[activeAggregationTab].UploadThroughput) }}
+                      {{ formatIOBytes(aggregationData[activeAggregationTab].UploadThroughput) }}
                     </span>
                   </div>
                 </th>
@@ -1657,7 +1645,7 @@ const getConnectionSortIcon = (columnId: string): string => {
                       <span class="text-slate-400">{{ getSortIcon('downloadThroughput') }}</span>
                     </div>
                     <span class="text-cyan-400 font-mono font-semibold">
-                      {{ formatThroughput(aggregationData[activeAggregationTab].DownloadThroughput) }}
+                      {{ formatIOBytes(aggregationData[activeAggregationTab].DownloadThroughput) }}
                     </span>
                   </div>
                 </th>
@@ -1669,7 +1657,7 @@ const getConnectionSortIcon = (columnId: string): string => {
                       <span class="text-slate-400">{{ getSortIcon('totalTraffic') }}</span>
                     </div>
                     <span class="text-slate-200 font-mono font-semibold">
-                      {{ formatTraffic(aggregationData[activeAggregationTab].totalTraffic) }}
+                      {{ formatDataBytes(aggregationData[activeAggregationTab].totalTraffic) }}
                     </span>
                   </div>
                 </th>
@@ -1681,7 +1669,7 @@ const getConnectionSortIcon = (columnId: string): string => {
                       <span class="text-slate-400">{{ getSortIcon('totalUpload') }}</span>
                     </div>
                     <span class="text-slate-200 font-mono font-semibold">
-                      {{ formatTraffic(aggregationData[activeAggregationTab].totalUpload) }}
+                      {{ formatDataBytes(aggregationData[activeAggregationTab].totalUpload) }}
                     </span>
                   </div>
                 </th>
@@ -1693,7 +1681,7 @@ const getConnectionSortIcon = (columnId: string): string => {
                       <span class="text-slate-400">{{ getSortIcon('totalDownload') }}</span>
                     </div>
                     <span class="text-slate-200 font-mono font-semibold">
-                      {{ formatTraffic(aggregationData[activeAggregationTab].totalDownload) }}
+                      {{ formatDataBytes(aggregationData[activeAggregationTab].totalDownload) }}
                     </span>
                   </div>
                 </th>
@@ -1745,39 +1733,27 @@ const getConnectionSortIcon = (columnId: string): string => {
                 </td>
                 <td class="px-3 py-2 text-center">
                   <span class="font-mono text-slate-200">{{
-                    BytesFixed(ipStats.totalThroughput.value, ipStats.totalThroughput.unit) }} {{
-                      ipStats.totalThroughput.unit
-                    }}</span>
+                    formatMetric(ipStats.totalThroughput.value, ipStats.totalThroughput.unit) }}</span>
                 </td>
                 <td class="px-3 py-2 text-center">
                   <span class="font-mono text-orange-400">{{
-                    BytesFixed(ipStats.uploadThroughput.value, ipStats.uploadThroughput.unit) }} {{
-                      ipStats.uploadThroughput.unit
-                    }}</span>
+                    formatMetric(ipStats.uploadThroughput.value, ipStats.uploadThroughput.unit) }}</span>
                 </td>
                 <td class="px-3 py-2 text-center">
                   <span class="font-mono text-cyan-400">{{
-                    BytesFixed(ipStats.downloadThroughput.value, ipStats.downloadThroughput.unit) }} {{
-                      ipStats.downloadThroughput.unit
-                    }}</span>
+                    formatMetric(ipStats.downloadThroughput.value, ipStats.downloadThroughput.unit) }}</span>
                 </td>
                 <td class="px-3 py-2 text-center">
                   <span class="font-mono text-slate-200">{{
-                    BytesFixed(ipStats.totalTraffic.value, ipStats.totalTraffic.unit) }} {{
-                      ipStats.totalTraffic.unit
-                    }}</span>
+                    formatMetric(ipStats.totalTraffic.value, ipStats.totalTraffic.unit) }}</span>
                 </td>
                 <td class="px-3 py-2 text-center">
                   <span class="font-mono text-orange-400">{{
-                    BytesFixed(ipStats.totalUpload.value, ipStats.totalUpload.unit) }} {{
-                      ipStats.totalUpload.unit
-                    }}</span>
+                    formatMetric(ipStats.totalUpload.value, ipStats.totalUpload.unit) }}</span>
                 </td>
                 <td class="px-3 py-2 text-center">
                   <span class="font-mono text-cyan-400">{{
-                    BytesFixed(ipStats.totalDownload.value, ipStats.totalDownload.unit) }} {{
-                      ipStats.totalDownload.unit
-                    }}</span>
+                    formatMetric(ipStats.totalDownload.value, ipStats.totalDownload.unit) }}</span>
                 </td>
                 <td class="px-3 py-2 text-center">
                   <span class="font-mono text-blue-400">{{ ipStats.tcpCount }}</span>

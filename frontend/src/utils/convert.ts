@@ -1,35 +1,48 @@
-export function convertToBytes(value: number, unit: string): number {
-  const unitMultipliers: { [key: string]: number } = {
-    'B': 1,
-    'KB': 1024,
-    'MB': 1024 * 1024,
-    'GB': 1024 * 1024 * 1024,
-    'TB': 1024 * 1024 * 1024 * 1024,
-    'PB': 1024 * 1024 * 1024 * 1024 * 1024,
-  };
+export const RATE_UNITS = [
+  "B/S",
+  "KB/S",
+  "MB/S",
+  "GB/S",
+  "TB/S",
+  "PB/S",
+] as const;
+type RateUnit = (typeof RATE_UNITS)[number];
 
-  const multiplier = unitMultipliers[unit.toUpperCase()] || 1;
-  return value * multiplier;
+export const DATA_UNITS = ["B", "KB", "MB", "GB", "TB", "PB"] as const;
+type DataUnit = (typeof DATA_UNITS)[number];
+
+export function convertToBytes(value: number, unit: string): number {
+  const idx = DATA_UNITS.indexOf(unit.trim().toUpperCase() as DataUnit);
+  if (idx === -1) return value;
+  return value * Math.pow(1024, idx);
 }
 
-export function BytesFixed(bytes: number, unit: string): string {
-  if (bytes < 0) {
-    return "-1";
-  }
-  if (unit === 'B' || unit === 'B/S' || unit === '%') {
-    return bytes.toFixed(0);
-  }
-  return bytes.toFixed(2);
-};
+export function formatMetric(
+  value: number,
+  unit: string,
+  decimals?: number,
+): string {
+  return `${formatValue(value, unit, decimals)} ${unit}`;
+}
 
-export const RATE_UNITS = ['B/S', 'KB/S', 'MB/S', 'GB/S', 'TB/S', 'PB/S'] as const;
-type RateUnit = typeof RATE_UNITS[number];
+export function formatValue(
+  value: number,
+  unit: string,
+  decimals?: number,
+): string {
+  if (value <= 0) return `${value}`;
+  const dec = decimals ?? getDefaultDecimals(unit);
+  return value.toFixed(dec);
+}
 
-export const DATA_UNITS = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'] as const;
-type DataUnit = typeof DATA_UNITS[number];
+function getDefaultDecimals(unit: string): number {
+  const u = unit.trim().toUpperCase();
+  if (u === "°C" || u === "°F") return 0;
+  return 2;
+}
 
 export function trimUnit(unit: string): RateUnit | DataUnit | string {
-  const u = unit.trim().replace(/\/s$/i, '/S');
+  const u = unit.trim().replace(/\/s$/i, "/S");
   if ((RATE_UNITS as readonly string[]).includes(u)) return u as RateUnit;
   if ((DATA_UNITS as readonly string[]).includes(u)) return u as DataUnit;
   return u;
@@ -51,56 +64,31 @@ export function normalizeToBytes(value: number, unit: string): number {
   return value * scale;
 }
 
-// 3. 格式化 ← Bytes/s（递归版，固定输出 RateUnit）
-export function formatIOBytes(bytes: number, idx = 0): string {
-  if (bytes === 0) {
-    return `0 ${RATE_UNITS[0]}`;
+function formatBytes(bytes: number, units: readonly string[], idx = 0): string {
+  if (bytes === 0) return `0 ${units[0]}`;
+  if (idx >= units.length - 1 || bytes < Math.pow(1024, idx + 1)) {
+    return `${(bytes / Math.pow(1024, idx)).toFixed(2)} ${units[idx]}`;
   }
-  if (idx >= RATE_UNITS.length - 1) {
-    // 已最大单位
-    return `${(bytes / Math.pow(1024, idx)).toFixed(2)} ${RATE_UNITS[idx]}`;
-  }
-  if (bytes < Math.pow(1024, idx + 1)) {
-    // 适合当前单位
-    return `${(bytes / Math.pow(1024, idx)).toFixed(2)} ${RATE_UNITS[idx]}`;
-  }
-  return formatIOBytes(bytes, idx + 1); // 继续往大单位走
+  return formatBytes(bytes, units, idx + 1);
 }
 
-// 3. 格式化 ← Bytes（递归版，固定输出 DataUnit）
-export function formatDataBytes(bytes: number, idx = 0): string {
-  if (bytes === 0) {
-    return `0 ${DATA_UNITS[0]}`;
-  }
-  if (idx >= DATA_UNITS.length - 1) {
-    // 已最大单位
-    return `${(bytes / Math.pow(1024, idx)).toFixed(2)} ${DATA_UNITS[idx]}`;
-  }
-  if (bytes < Math.pow(1024, idx + 1)) {
-    // 适合当前单位
-    return `${(bytes / Math.pow(1024, idx)).toFixed(2)} ${DATA_UNITS[idx]}`;
-  }
-  return formatDataBytes(bytes, idx + 1); // 继续往大单位走
-}
+export const formatIOBytes = (bytes: number) => formatBytes(bytes, RATE_UNITS);
+export const formatDataBytes = (bytes: number) =>
+  formatBytes(bytes, DATA_UNITS);
 
 // 转换DATA_UNITS单位位目标单位
-export function covertDataBytes(bytes: number, unit: string, target: string): [number, string] {
-  if (bytes === 0) {
-    return [0, DATA_UNITS[0]];
-  }
+export function covertDataBytes(
+  bytes: number,
+  unit: string,
+  target: string,
+): [number, string] {
+  if (bytes === 0) return [0, target];
   const idx = DATA_UNITS.indexOf(unit as DataUnit);
   const targetIdx = DATA_UNITS.indexOf(target as DataUnit);
   if (targetIdx === -1) return [bytes, unit];
   if (idx === -1) return [bytes, unit];
 
-  if (unit as DataUnit === target) {
-    return [bytes, unit];
-  }
-
-  if (idx >= DATA_UNITS.length - 1) {
-    // 已最大单位
-    return [bytes, DATA_UNITS[idx]];
-  }
+  if ((unit as DataUnit) === target) return [bytes, unit];
 
   const diff = idx - targetIdx;
   if (diff < 0) {

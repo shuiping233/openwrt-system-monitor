@@ -15,7 +15,7 @@ import type { EChartsOption } from 'echarts';
 import { useDatabase } from '../useDatabase';
 import type { DynamicApiResponse, StorageData } from '../model';
 import { TimeRanges } from '../model';
-import { normalizeToBytes, formatIOBytes, BytesFixed, covertDataBytes } from '../utils/convert';
+import { normalizeToBytes, formatIOBytes, formatMetric, covertDataBytes } from '../utils/convert';
 import { useSettings } from '../useSettings';
 
 // 注册 ECharts 组件
@@ -42,10 +42,6 @@ const { getHistory, getAccordionState, setAccordionState } = useDatabase();
 const { settings, setConfig } = useSettings();
 
 // ================= 常量与辅助函数 =================
-function formatIOTooltip(value: number): string {
-  return formatIOBytes(value);
-}
-
 // 颜色配置
 const colors = [
   '#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316',
@@ -96,7 +92,7 @@ function getFixedAxisOption(title: string, color: string, unit: string, min?: nu
       textStyle: { color: '#fff' },
       formatter: (params: any) => {
         const param = params[0];
-        return `${param.seriesName}<br/>${new Date(param.value[0]).toLocaleString()}<br/>${BytesFixed(param.value[1], unit)} ${unit}`;
+        return `${param.seriesName}<br/>${new Date(param.value[0]).toLocaleString()}<br/>${formatMetric(param.value[1], unit)}`;
       }
     },
     grid: { left: 40, right: 20, bottom: 30, top: 60, containLabel: false },
@@ -131,7 +127,7 @@ function getIOOption(title: string, color: string): EChartsOption {
       textStyle: { color: '#fff' },
       formatter: (params: any) => {
         const param = params[0];
-        const displayValue = formatIOTooltip(param.value[1]);
+        const displayValue = formatIOBytes(param.value[1]);
         return `${param.seriesName}<br/>${new Date(param.value[0]).toLocaleString()}<br/>${displayValue}`;
       }
     },
