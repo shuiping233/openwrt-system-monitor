@@ -37,3 +37,7 @@ pnpm vue-tsc --noEmit   # 类型检查
 | `dexie`                   | 浏览器 IndexedDB，`src/utils/db.ts` 定义 schema |
 | `dayjs`                   | 时间格式化                                      |
 | `vite-plugin-pwa`         | PWA manifest / service worker                   |
+
+## 后端接口数据说明
+
+- 后端的接口格式,凡是涉及到具体数值指标的,都会带有类似`{"value": 123.34 "unit": "KB/S"}`的格式,单位的字符串值都是大写,所以要在页面中直接展示指标数据时,对`value`进行取小数点位数后,直接展示`value``unit`字段值即可,具体的接口数据类型请参考`src/model.ts`的数据类定义
