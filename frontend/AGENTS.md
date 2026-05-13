@@ -1,6 +1,6 @@
 # AGENTS.md — OpenWrt Monitor Frontend
 
-Vue 3 SPA，用于展示 OpenWrt 系统指标（CPU/内存/网络/磁盘IO），含 PWA。
+此项目是一个Vue 3 SPA前端项目，用于展示和查询 OpenWrt 系统指标（CPU/内存/网络/磁盘IO），含 PWA。
 
 ## 构建 & 开发
 
