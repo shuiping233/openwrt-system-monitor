@@ -1,7 +1,3 @@
-import { UnitType } from "dayjs";
-import { number } from "echarts";
-import { numCalculate } from "echarts/types/src/component/marker/markerHelper.js";
-
 export function convertToBytes(value: number, unit: string): number {
   const unitMultipliers: { [key: string]: number } = {
     'B': 1,
