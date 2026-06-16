@@ -30,6 +30,10 @@ vars:
       fi
 
 tasks:
+  default:
+    cmds:
+      - task --list
+
   optimize:china:
     desc: "一键切换为国内镜像源 (APT, Go, NPM, GitHub)"
     deps: [install:nodejs]
@@ -44,7 +48,7 @@ tasks:
           fi
           {{.SUDO}} apt update
         fi
-      - task: install:go:{{.PKG_MGR}} 
+      - task: install:go:{{.PKG_MGR}}
       - GOTOOLCHAIN=local go env -w GO111MODULE=on
       - GOTOOLCHAIN=local go env -w GOPROXY=https://goproxy.cn,direct
       - GOTOOLCHAIN=local go env -w GOINSECURE="*"
@@ -56,10 +60,10 @@ tasks:
     deps: [install:nodejs, "install:go:{{.PKG_MGR}}"]
     cmds:
       - task: install:step_2
-  
+
   install:step_2:
     internal: true
-    deps: [install:pnpm,install:go-tools,install:packages,install:upx]
+    deps: [install:viteplus, install:go-tools, install:packages, install:upx]
     cmds:
       - go mod tidy
 
@@ -68,12 +72,12 @@ tasks:
     cmds:
       - "{{.SUDO}} apt update"
       - "{{.SUDO}} apt install -y curl git xz-utils "
-      
+
   install:base-tools:yum:
     internal: true
     cmds:
       - yum install -y
-  
+
   install:nodejs:
     internal: true
     deps: ["install:base-tools:{{.PKG_MGR}}"]
@@ -110,7 +114,7 @@ tasks:
       # - "{{.SUDO}} ln -sf /usr/local/go/bin/gofmt /usr/bin/gofmt"
       - apt install -y golang-go
       - GOTOOLCHAIN=local go version
-      
+
   install:go:yum:
     internal: true
     status:
@@ -174,14 +178,21 @@ tasks:
       - go install github.com/goreleaser/goreleaser/v2@{{.GORELEASER_VER}}
       - "{{.SUDO}} ln -sf {{.GOPATH}}/bin/goreleaser /usr/bin/goreleaser"
 
-  install:pnpm:
+  # install:pnpm:
+  #   internal: true
+  #   status:
+  #     - command -v pnpm
+  #   vars:
+  #     PNPM_VER: "latest-11"
+  #   cmds:
+  #     - "{{.SUDO}} npm install -g pnpm@{{.PNPM_VER}}"
+
+  install:viteplus:
     internal: true
     status:
-      - command -v pnpm
-    vars:
-      PNPM_VER: "latest-10"
+      - command -v vp
     cmds:
-      - "{{.SUDO}} npm install -g pnpm@{{.PNPM_VER}}"
+      - "curl -fsSL https://vite.plus | bash"
 
   build:
     desc: 使用 GoReleaser 构建 (默认全跑, 可选 --frontend 或 --backend)
@@ -195,7 +206,7 @@ tasks:
 
   build-frontend:
     desc: Build frontend
-    deps: [install:pnpm]
+    deps: [install:viteplus]
     cmds:
       - bash scripts/build-frontend.sh
 
@@ -225,7 +236,7 @@ tasks:
       - go install honnef.co/go/tools/cmd/staticcheck@{{.STATICCHECK_VER}}
       - "{{.SUDO}} ln -sf {{.GOPATH}}/bin/staticcheck /usr/bin/staticcheck"
       - go install github.com/securego/gosec/v2/cmd/gosec@{{.GOSEC_VER}}
-      - "{{.SUDO}} ln -sf {{.GOPATH}}/bin/gosec /usr/bin/gosec"      
+      - "{{.SUDO}} ln -sf {{.GOPATH}}/bin/gosec /usr/bin/gosec"
 
   pre-commit:
     desc: pre-commit

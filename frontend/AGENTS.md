@@ -44,3 +44,20 @@ pnpm vue-tsc --noEmit   # 类型检查
 ## 后端接口数据说明
 
 - 后端的接口格式,凡是涉及到具体数值指标的,都会带有类似`{"value": 123.34 "unit": "KB/S"}`的格式,单位的字符串值都是大写,所以要在页面中直接展示指标数据时,对`value`进行取小数点位数后,直接展示`value``unit`字段值即可,具体的接口数据类型请参考`src/model.ts`的数据类定义
+
+<!--VITE PLUS START-->
+
+# Using Vite+, the Unified Toolchain for the Web
+
+This project is using Vite+, a unified toolchain built on top of Vite, Rolldown, Vitest, tsdown, Oxlint, Oxfmt, and Vite Task. Vite+ wraps runtime management, package management, and frontend tooling in a single global CLI called `vp`. Vite+ is distinct from Vite, and it invokes Vite through `vp dev` and `vp build`. Run `vp help` to print a list of commands and `vp <command> --help` for information about a specific command.
+
+Docs are local at `node_modules/vite-plus/docs` or online at https://viteplus.dev/guide/.
+
+## Review Checklist
+
+- [ ] Run `vp install` after pulling remote changes and before getting started.
+- [ ] Run `vp check` and `vp test` to format, lint, type check and test changes.
+- [ ] Check if there are `vite.config.ts` tasks or `package.json` scripts necessary for validation, run via `vp run <script>`.
+- [ ] If setup, runtime, or package-manager behavior looks wrong, run `vp env doctor` and include its output when asking for help.
+
+<!--VITE PLUS END-->

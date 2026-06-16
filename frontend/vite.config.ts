@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig } from "vite-plus";
 import vueDevTools from "vite-plugin-vue-devtools";
 import compression from "vite-plugin-compression";
 import vue from "@vitejs/plugin-vue";
@@ -9,6 +9,8 @@ import { APP_CONFIG } from "./src/config/app";
 
 // https://vite.dev/config/
 export default defineConfig({
+  fmt: {},
+  lint: {"jsPlugins":[{"name":"vite-plus","specifier":"vite-plus/oxlint-plugin"}],"rules":{"vite-plus/prefer-vite-plus-imports":"error"},"options":{"typeAware":true,"typeCheck":true}},
   plugins: [
     vue(),
     // HTML 模板注入

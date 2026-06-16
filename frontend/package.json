@@ -4,9 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "vp dev",
+    "build": "vp build",
+    "preview": "vp preview"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.2",
@@ -24,10 +24,12 @@
     "postcss": "^8.5.8",
     "tailwindcss": "^4.2.2",
     "typescript": "^5.9.3",
-    "vite": "8.0.4",
+    "vite": "catalog:",
     "vite-plugin-compression": "^0.5.1",
     "vite-plugin-html": "^3.2.2",
     "vite-plugin-pwa": "^1.2.0",
-    "vite-plugin-vue-devtools": "^8.1.1"
-  }
+    "vite-plugin-vue-devtools": "^8.1.1",
+    "vite-plus": "catalog:"
+  },
+  "packageManager": "pnpm@11.7.0"
 }
