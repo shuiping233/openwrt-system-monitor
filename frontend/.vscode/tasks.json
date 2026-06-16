@@ -4,8 +4,8 @@
     {
       "label": "vite-dev",
       "type": "shell",
-      "command": "pnpm",
-      "args": ["vite", "--clearScreen=false"],
+      "command": "vp",
+      "args": ["dev", "--clearScreen=false"],
       "isBackground": true,
       "problemMatcher": {
         "owner": "vite",
