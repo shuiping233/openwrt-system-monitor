@@ -1,11 +1,4 @@
-export const RATE_UNITS = [
-  "B/S",
-  "KB/S",
-  "MB/S",
-  "GB/S",
-  "TB/S",
-  "PB/S",
-] as const;
+export const RATE_UNITS = ["B/S", "KB/S", "MB/S", "GB/S", "TB/S", "PB/S"] as const;
 type RateUnit = (typeof RATE_UNITS)[number];
 
 export const DATA_UNITS = ["B", "KB", "MB", "GB", "TB", "PB"] as const;
@@ -17,19 +10,11 @@ export function convertToBytes(value: number, unit: string): number {
   return value * Math.pow(1024, idx);
 }
 
-export function formatMetric(
-  value: number,
-  unit: string,
-  decimals?: number,
-): string {
+export function formatMetric(value: number, unit: string, decimals?: number): string {
   return `${formatValue(value, unit, decimals)} ${unit}`;
 }
 
-export function formatValue(
-  value: number,
-  unit: string,
-  decimals?: number,
-): string {
+export function formatValue(value: number, unit: string, decimals?: number): string {
   if (value <= 0) return `${value}`;
   const dec = decimals ?? getDefaultDecimals(unit);
   return value.toFixed(dec);
@@ -53,9 +38,7 @@ export function normalizeToBytes(value: number, unit: string): number {
   const u = trimUnit(unit);
 
   // 只处理已知单位
-  const list: readonly string[] = RATE_UNITS.includes(u as RateUnit)
-    ? RATE_UNITS
-    : DATA_UNITS;
+  const list: readonly string[] = RATE_UNITS.includes(u as RateUnit) ? RATE_UNITS : DATA_UNITS;
   const idx = list.indexOf(u);
   if (idx === -1) return value; // 未知单位，原样返回
 
@@ -73,15 +56,10 @@ function formatBytes(bytes: number, units: readonly string[], idx = 0): string {
 }
 
 export const formatIOBytes = (bytes: number) => formatBytes(bytes, RATE_UNITS);
-export const formatDataBytes = (bytes: number) =>
-  formatBytes(bytes, DATA_UNITS);
+export const formatDataBytes = (bytes: number) => formatBytes(bytes, DATA_UNITS);
 
 // 转换DATA_UNITS单位位目标单位
-export function covertDataBytes(
-  bytes: number,
-  unit: string,
-  target: string,
-): [number, string] {
+export function covertDataBytes(bytes: number, unit: string, target: string): [number, string] {
   if (bytes === 0) return [0, target];
   const idx = DATA_UNITS.indexOf(unit as DataUnit);
   const targetIdx = DATA_UNITS.indexOf(target as DataUnit);

@@ -1,10 +1,10 @@
-import { ref } from 'vue';
+import { ref } from "vue";
 
 // 定义 Toast 数据结构
 interface ToastItem {
   id: number;
   message: string;
-  type: 'success' | 'error';
+  type: "success" | "error";
 }
 
 // 内部状态（单例模式，整个应用共享）
@@ -17,11 +17,7 @@ export function useToast() {
    * @param type 类型 'success' | 'error'，默认 success
    * @param duration 持续时间，默认 3000ms
    */
-  const showToast = (
-    message: string, 
-    type: 'success' | 'error' = 'success', 
-    duration = 3000
-  ) => {
+  const showToast = (message: string, type: "success" | "error" = "success", duration = 3000) => {
     const id = Date.now();
     toasts.value.push({ id, message, type });
 
@@ -32,7 +28,7 @@ export function useToast() {
   };
 
   const removeToast = (id: number) => {
-    const index = toasts.value.findIndex(t => t.id === id);
+    const index = toasts.value.findIndex((t) => t.id === id);
     if (index !== -1) {
       toasts.value.splice(index, 1);
     }
@@ -41,8 +37,8 @@ export function useToast() {
   return {
     list: toasts,
     show: showToast,
-    success: (msg: string) => showToast(msg, 'success'),
-    error: (msg: string) => showToast(msg, 'error'),
-    removeToast
+    success: (msg: string) => showToast(msg, "success"),
+    error: (msg: string) => showToast(msg, "error"),
+    removeToast,
   };
 }

@@ -98,10 +98,7 @@ export function useDatabase() {
         .and((item) => item.timestamp >= startTime)
         .sortBy("timestamp");
     } else {
-      return await db.history
-        .where("timestamp")
-        .between(startTime, endTime)
-        .sortBy("timestamp");
+      return await db.history.where("timestamp").between(startTime, endTime).sortBy("timestamp");
     }
   };
 

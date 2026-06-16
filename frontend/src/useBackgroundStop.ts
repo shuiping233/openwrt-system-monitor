@@ -75,10 +75,7 @@ export function useBackgroundStop() {
   };
 
   // 注册回调函数
-  const registerCallbacks = (
-    onStop: StopCallback,
-    onResume: ResumeCallback,
-  ) => {
+  const registerCallbacks = (onStop: StopCallback, onResume: ResumeCallback) => {
     stopCallback = onStop;
     resumeCallback = onResume;
   };

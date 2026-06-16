@@ -54,10 +54,7 @@ const initPromise = (async () => {
 })();
 
 export function useSettings() {
-  const setConfig = async <K extends keyof Settings>(
-    key: K,
-    value: Settings[K],
-  ) => {
+  const setConfig = async <K extends keyof Settings>(key: K, value: Settings[K]) => {
     await db.settings.put({ key, value });
     (settings as any)[key] = value;
   };
