@@ -41,8 +41,8 @@ jobs:
           run-install: true
 
         
-      - name: Set executable
-        run: chmod -R +x ./scripts/
+      # - name: Set executable
+      #   run: chmod -R +x ./scripts/
 
       - name: Run GoReleaser build all things
         uses: goreleaser/goreleaser-action@v6
