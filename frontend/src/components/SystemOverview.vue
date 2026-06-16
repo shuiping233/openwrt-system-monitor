@@ -29,8 +29,10 @@ const uiState = reactive({
   <div class="system-overview">
     <!-- 1. Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
-      <div v-if="data.dynamic.cpu?.total?.usage"
-        class="bg-slate-800 border border-slate-700 rounded-xl p-5 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:border-slate-500">
+      <div
+        v-if="data.dynamic.cpu?.total?.usage"
+        class="bg-slate-800 border border-slate-700 rounded-xl p-5 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:border-slate-500"
+      >
         <div class="text-slate-400 text-sm flex justify-between">
           CPU 总使用率
           <span class="text-slate-400 text-sm text-right">CPU 温度</span>
@@ -46,13 +48,15 @@ const uiState = reactive({
           <!-- 右侧：CPU温度 -->
           <div v-if="data.dynamic.cpu?.total?.temperature" class="text-right">
             <div class="text-xl font-bold">
-              <span :class="{
-                'text-white': data.dynamic.cpu.total.temperature.value < 65,
-                'text-orange-400':
-                  data.dynamic.cpu.total.temperature.value >= 65 &&
-                  data.dynamic.cpu.total.temperature.value < 80,
-                'text-red-500': data.dynamic.cpu.total.temperature.value >= 80,
-              }">
+              <span
+                :class="{
+                  'text-white': data.dynamic.cpu.total.temperature.value < 65,
+                  'text-orange-400':
+                    data.dynamic.cpu.total.temperature.value >= 65 &&
+                    data.dynamic.cpu.total.temperature.value < 80,
+                  'text-red-500': data.dynamic.cpu.total.temperature.value >= 80,
+                }"
+              >
                 {{
                   formatValue(
                     data.dynamic.cpu.total.temperature.value,
@@ -62,21 +66,25 @@ const uiState = reactive({
               </span>
               <span class="text-slate-400 text-sm ml-1">{{
                 data.dynamic.cpu.total.temperature.unit
-                }}</span>
+              }}</span>
             </div>
           </div>
         </div>
 
         <!-- CPU 使用率进度条 -->
         <div class="h-1 bg-slate-700 mt-3 rounded-full overflow-hidden">
-          <div class="h-full bg-violet-500 transition-all duration-500"
-            :style="{ width: data.dynamic.cpu.total.usage.value + '%' }"></div>
+          <div
+            class="h-full bg-violet-500 transition-all duration-500"
+            :style="{ width: data.dynamic.cpu.total.usage.value + '%' }"
+          ></div>
         </div>
       </div>
 
       <!-- Memory -->
-      <div v-if="data.dynamic.memory?.used_percent"
-        class="bg-slate-800 border border-slate-700 rounded-xl p-5 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:border-slate-500">
+      <div
+        v-if="data.dynamic.memory?.used_percent"
+        class="bg-slate-800 border border-slate-700 rounded-xl p-5 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:border-slate-500"
+      >
         <div class="text-slate-400 text-sm mb-1">内存使用率</div>
 
         <div class="flex justify-between items-baseline mt-1">
@@ -94,30 +102,38 @@ const uiState = reactive({
           <div class="text-right">
             <span class="font-bold">{{
               formatMetric(data.dynamic.memory.used.value, data.dynamic.memory.used.unit)
-              }}</span>
+            }}</span>
             <span class="text-slate-400 mx-1">/</span>
             <span class="font-bold">{{
               formatMetric(data.dynamic.memory.total.value, data.dynamic.memory.total.unit)
-              }}</span>
+            }}</span>
           </div>
         </div>
 
         <div class="h-1 bg-slate-700 mt-3 rounded-full overflow-hidden">
-          <div class="h-full bg-blue-500 transition-all duration-500"
-            :style="{ width: data.dynamic.memory.used_percent.value + '%' }"></div>
+          <div
+            class="h-full bg-blue-500 transition-all duration-500"
+            :style="{ width: data.dynamic.memory.used_percent.value + '%' }"
+          ></div>
         </div>
       </div>
 
       <!-- Network In -->
-      <div v-if="
-        data.dynamic.network?.['pppoe-wan']?.incoming ||
-        data.dynamic.network?.['pppoe-wan']?.outgoing
-      " class="bg-slate-800 border border-slate-700 rounded-xl p-5">
+      <div
+        v-if="
+          data.dynamic.network?.['pppoe-wan']?.incoming ||
+          data.dynamic.network?.['pppoe-wan']?.outgoing
+        "
+        class="bg-slate-800 border border-slate-700 rounded-xl p-5"
+      >
         <div class="flex flex-col">
           <div class="text-slate-400 text-sm mb-2">网络流量 (pppoe-wan)</div>
 
           <!-- 上行 -->
-          <div v-if="data.dynamic.network?.['pppoe-wan']?.outgoing" class="flex items-center justify-between">
+          <div
+            v-if="data.dynamic.network?.['pppoe-wan']?.outgoing"
+            class="flex items-center justify-between"
+          >
             <div class="text-orange-500">↑ 上行</div>
             <div class="text-xl font-bold font-mono text-orange-500">
               {{
@@ -130,7 +146,10 @@ const uiState = reactive({
           </div>
 
           <!-- 下行 -->
-          <div v-if="data.dynamic.network?.['pppoe-wan']?.incoming" class="flex items-center justify-between mb-1">
+          <div
+            v-if="data.dynamic.network?.['pppoe-wan']?.incoming"
+            class="flex items-center justify-between mb-1"
+          >
             <div class="text-cyan-500">↓ 下行</div>
             <div class="text-xl font-bold font-mono text-cyan-500">
               {{
@@ -144,13 +163,19 @@ const uiState = reactive({
         </div>
       </div>
 
-      <div v-if="
-        data.dynamic.network?.['pppoe-wan']?.incoming ||
-        data.dynamic.network?.['pppoe-wan']?.outgoing
-      " class="bg-slate-800 border border-slate-700 rounded-xl p-5">
+      <div
+        v-if="
+          data.dynamic.network?.['pppoe-wan']?.incoming ||
+          data.dynamic.network?.['pppoe-wan']?.outgoing
+        "
+        class="bg-slate-800 border border-slate-700 rounded-xl p-5"
+      >
         <div class="text-slate-400 text-sm mb-2">总网卡流量</div>
         <!-- 上行 -->
-        <div v-if="data.dynamic.network?.['pppoe-wan']?.outgoing" class="flex items-center justify-between">
+        <div
+          v-if="data.dynamic.network?.['pppoe-wan']?.outgoing"
+          class="flex items-center justify-between"
+        >
           <div class="text-orange-500">↑ 上行</div>
           <div class="text-xl font-bold font-mono text-orange-500">
             {{
@@ -163,7 +188,10 @@ const uiState = reactive({
         </div>
 
         <!-- 下行 -->
-        <div v-if="data.dynamic.network?.['pppoe-wan']?.incoming" class="flex items-center justify-between mb-1">
+        <div
+          v-if="data.dynamic.network?.['pppoe-wan']?.incoming"
+          class="flex items-center justify-between mb-1"
+        >
           <div class="text-cyan-500">↓ 下行</div>
           <div class="text-xl font-bold font-mono text-cyan-500">
             {{
@@ -177,13 +205,17 @@ const uiState = reactive({
       </div>
 
       <!-- System Info (Smaller cards) -->
-      <div v-if="data.dynamic.system?.uptime"
-        class="bg-slate-800 border border-slate-700 rounded-xl p-5 flex items-center justify-between">
+      <div
+        v-if="data.dynamic.system?.uptime"
+        class="bg-slate-800 border border-slate-700 rounded-xl p-5 flex items-center justify-between"
+      >
         <div class="text-slate-400 text-sm">运行时间</div>
         <div class="text-lg font-bold">{{ data.dynamic.system.uptime }}</div>
       </div>
-      <div v-if="data.static.system?.hostname"
-        class="bg-slate-800 border border-slate-700 rounded-xl p-5 flex items-center justify-between">
+      <div
+        v-if="data.static.system?.hostname"
+        class="bg-slate-800 border border-slate-700 rounded-xl p-5 flex items-center justify-between"
+      >
         <div class="text-slate-400 text-sm">主机名</div>
         <div class="text-lg font-bold font-mono">{{ data.static.system.hostname }}</div>
       </div>
@@ -193,19 +225,31 @@ const uiState = reactive({
 
     <!-- Storage -->
     <div v-if="data.dynamic.storage">
-      <div @click="uiState.accordions.storage = !uiState.accordions.storage"
-        class="py-2.5 border-b border-slate-700 mb-5 cursor-pointer select-none flex justify-between items-center group">
+      <div
+        @click="uiState.accordions.storage = !uiState.accordions.storage"
+        class="py-2.5 border-b border-slate-700 mb-5 cursor-pointer select-none flex justify-between items-center group"
+      >
         <h3 class="text-lg font-semibold text-slate-200 group-hover:text-white">存储详情</h3>
-        <span class="text-slate-500 transition-transform duration-300"
-          :class="{ 'rotate-180': uiState.accordions.storage }">▼</span>
+        <span
+          class="text-slate-500 transition-transform duration-300"
+          :class="{ 'rotate-180': uiState.accordions.storage }"
+          >▼</span
+        >
       </div>
-      <div v-show="uiState.accordions.storage" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        <div v-for="(dev, name) in data.dynamic.storage" :key="name"
-          class="bg-slate-800 border border-slate-700 rounded-xl p-5 transition-all hover:-translate-y-0.5 hover:shadow-xl">
+      <div
+        v-show="uiState.accordions.storage"
+        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
+      >
+        <div
+          v-for="(dev, name) in data.dynamic.storage"
+          :key="name"
+          class="bg-slate-800 border border-slate-700 rounded-xl p-5 transition-all hover:-translate-y-0.5 hover:shadow-xl"
+        >
           <div class="flex justify-between items-center mb-4">
             <span class="text-xl font-bold">{{ name }}</span>
-            <span class="bg-slate-700 px-2 py-0.5 rounded text-xs font-mono text-slate-300">{{
-              formatValue(dev.used_percent.value, dev.used_percent.unit) }}%</span>
+            <span class="bg-slate-700 px-2 py-0.5 rounded text-xs font-mono text-slate-300"
+              >{{ formatValue(dev.used_percent.value, dev.used_percent.unit) }}%</span
+            >
           </div>
           <div class="grid grid-cols-3 gap-2 text-sm mb-3">
             <div>
@@ -223,7 +267,7 @@ const uiState = reactive({
               <span class="text-slate-500">使用量:</span>
               <span class="font-mono">{{
                 formatMetric(dev.used_percent.value, dev.used_percent.unit)
-                }}</span>
+              }}</span>
             </div>
             <div>
               <span class="text-slate-500">总容量:</span>
@@ -235,8 +279,10 @@ const uiState = reactive({
             </div>
           </div>
           <div class="h-1.5 bg-slate-900 rounded-full overflow-hidden mt-2">
-            <div class="h-full bg-cyan-500 transition-all duration-500"
-              :style="{ width: Math.min(dev.used_percent.value, 100) + '%' }"></div>
+            <div
+              class="h-full bg-cyan-500 transition-all duration-500"
+              :style="{ width: Math.min(dev.used_percent.value, 100) + '%' }"
+            ></div>
           </div>
         </div>
       </div>
@@ -244,22 +290,37 @@ const uiState = reactive({
 
     <!-- CPU -->
     <div v-if="data.dynamic.cpu" class="mt-8">
-      <div @click="uiState.accordions.cpu = !uiState.accordions.cpu"
-        class="py-2.5 border-b border-slate-700 mb-5 cursor-pointer select-none flex justify-between items-center group">
+      <div
+        @click="uiState.accordions.cpu = !uiState.accordions.cpu"
+        class="py-2.5 border-b border-slate-700 mb-5 cursor-pointer select-none flex justify-between items-center group"
+      >
         <h3 class="text-lg font-semibold text-slate-200 group-hover:text-white">CPU 核心详情</h3>
-        <span class="text-slate-500 transition-transform duration-300"
-          :class="{ 'rotate-180': uiState.accordions.cpu }">▼</span>
+        <span
+          class="text-slate-500 transition-transform duration-300"
+          :class="{ 'rotate-180': uiState.accordions.cpu }"
+          >▼</span
+        >
       </div>
-      <div v-show="uiState.accordions.cpu" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        <div v-for="(core, name) in data.dynamic.cpu" :key="name"
-          class="bg-slate-800 border border-slate-700 rounded-xl p-5 transition-all hover:-translate-y-0.5 hover:shadow-xl">
+      <div
+        v-show="uiState.accordions.cpu"
+        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5"
+      >
+        <div
+          v-for="(core, name) in data.dynamic.cpu"
+          :key="name"
+          class="bg-slate-800 border border-slate-700 rounded-xl p-5 transition-all hover:-translate-y-0.5 hover:shadow-xl"
+        >
           <div class="flex justify-between mb-2">
             <span class="text-lg font-bold">{{ name }}</span>
-            <span class="text-lg font-bold">{{ formatValue(core.usage.value, core.usage.unit) }}%</span>
+            <span class="text-lg font-bold"
+              >{{ formatValue(core.usage.value, core.usage.unit) }}%</span
+            >
           </div>
           <div class="h-1.5 bg-slate-900 rounded-full overflow-hidden mb-2">
-            <div class="h-full bg-violet-500 transition-all duration-500"
-              :style="{ width: Math.min(core.usage.value, 100) + '%' }"></div>
+            <div
+              class="h-full bg-violet-500 transition-all duration-500"
+              :style="{ width: Math.min(core.usage.value, 100) + '%' }"
+            ></div>
           </div>
           <div v-if="core.temperature.value > 0" class="text-xs text-slate-500 mt-2">
             温度: {{ formatValue(core.temperature.value, core.temperature.unit) }}°C
@@ -270,16 +331,26 @@ const uiState = reactive({
 
     <!-- Network Interfaces -->
     <div v-if="data.dynamic.network || data.static.network" class="mt-8">
-      <div @click="uiState.accordions.network = !uiState.accordions.network"
-        class="py-2.5 border-b border-slate-700 mb-5 cursor-pointer select-none flex justify-between items-center group">
+      <div
+        @click="uiState.accordions.network = !uiState.accordions.network"
+        class="py-2.5 border-b border-slate-700 mb-5 cursor-pointer select-none flex justify-between items-center group"
+      >
         <h3 class="text-lg font-semibold text-slate-200 group-hover:text-white">网络配置详情</h3>
-        <span class="text-slate-500 transition-transform duration-300"
-          :class="{ 'rotate-180': uiState.accordions.network }">▼</span>
+        <span
+          class="text-slate-500 transition-transform duration-300"
+          :class="{ 'rotate-180': uiState.accordions.network }"
+          >▼</span
+        >
       </div>
-      <div v-show="uiState.accordions.network" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div
+        v-show="uiState.accordions.network"
+        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
+      >
         <!-- total netowrk device io -->
-        <div v-if="data.dynamic.network?.total"
-          class="bg-slate-800 border border-slate-700 rounded-xl p-5 transition-all hover:-translate-y-0.5 hover:shadow-xl">
+        <div
+          v-if="data.dynamic.network?.total"
+          class="bg-slate-800 border border-slate-700 rounded-xl p-5 transition-all hover:-translate-y-0.5 hover:shadow-xl"
+        >
           <h3 class="text-lg font-bold mb-4">总网卡流量</h3>
           <div class="flex justify-between items-center">
             <div class="text-xl font-bold font-mono text-cyan-500">
@@ -305,8 +376,10 @@ const uiState = reactive({
 
         <!-- IO Cards -->
         <template v-for="(net, iface) in data.dynamic.network" :key="'io-' + iface">
-          <div v-if="iface !== 'total'"
-            class="bg-slate-800 border border-slate-700 rounded-xl p-5 transition-all hover:-translate-y-0.5 hover:shadow-xl">
+          <div
+            v-if="iface !== 'total'"
+            class="bg-slate-800 border border-slate-700 rounded-xl p-5 transition-all hover:-translate-y-0.5 hover:shadow-xl"
+          >
             <h3 class="text-lg font-bold mb-4">
               {{ iface }} <span class="text-slate-500 text-sm font-normal">IO</span>
             </h3>
@@ -322,8 +395,10 @@ const uiState = reactive({
         </template>
         <!-- IP Cards -->
         <template v-for="(info, iface) in data.static.network" :key="'ip-' + iface">
-          <div v-if="iface !== 'global' && iface !== 'lo'"
-            class="bg-slate-800 border border-slate-700 rounded-xl p-5 transition-all hover:-translate-y-0.5 hover:shadow-xl">
+          <div
+            v-if="iface !== 'global' && iface !== 'lo'"
+            class="bg-slate-800 border border-slate-700 rounded-xl p-5 transition-all hover:-translate-y-0.5 hover:shadow-xl"
+          >
             <h3 class="text-lg font-bold mb-3">
               {{ iface }} <span class="text-slate-500 text-sm font-normal">IP</span>
             </h3>
@@ -334,15 +409,20 @@ const uiState = reactive({
           </div>
         </template>
         <!-- Gateway -->
-        <div v-if="
-          data.static.network?.global?.gateway && data.static.network.global.gateway !== 'unknown'
-        " class="bg-slate-800 border border-slate-700 rounded-xl p-5 flex flex-col justify-center">
+        <div
+          v-if="
+            data.static.network?.global?.gateway && data.static.network.global.gateway !== 'unknown'
+          "
+          class="bg-slate-800 border border-slate-700 rounded-xl p-5 flex flex-col justify-center"
+        >
           <h3 class="text-slate-400 text-sm mb-2">网关</h3>
           <div class="text-2xl font-bold font-mono">{{ data.static.network.global.gateway }}</div>
         </div>
         <!-- DNS -->
-        <div v-if="data.static.network?.global?.dns && data.static.network.global.dns.length > 0"
-          class="bg-slate-800 border border-slate-700 rounded-xl p-5 flex flex-col justify-center">
+        <div
+          v-if="data.static.network?.global?.dns && data.static.network.global.dns.length > 0"
+          class="bg-slate-800 border border-slate-700 rounded-xl p-5 flex flex-col justify-center"
+        >
           <h3 class="text-slate-400 text-sm mb-2">DNS</h3>
           <template v-for="dns in data.static.network.global.dns" :key="dns">
             <div class="text-2xl font-bold font-mono">{{ dns }}</div>
@@ -353,13 +433,21 @@ const uiState = reactive({
 
     <!-- System Info -->
     <div v-if="data.static.system" class="mt-8">
-      <div @click="uiState.accordions.sysinfo = !uiState.accordions.sysinfo"
-        class="py-2.5 border-b border-slate-700 mb-5 cursor-pointer select-none flex justify-between items-center group">
+      <div
+        @click="uiState.accordions.sysinfo = !uiState.accordions.sysinfo"
+        class="py-2.5 border-b border-slate-700 mb-5 cursor-pointer select-none flex justify-between items-center group"
+      >
         <h3 class="text-lg font-semibold text-slate-200 group-hover:text-white">系统信息详情</h3>
-        <span class="text-slate-500 transition-transform duration-300"
-          :class="{ 'rotate-180': uiState.accordions.sysinfo }">▼</span>
+        <span
+          class="text-slate-500 transition-transform duration-300"
+          :class="{ 'rotate-180': uiState.accordions.sysinfo }"
+          >▼</span
+        >
       </div>
-      <div v-show="uiState.accordions.sysinfo" class="bg-slate-800 border border-slate-700 rounded-xl p-6">
+      <div
+        v-show="uiState.accordions.sysinfo"
+        class="bg-slate-800 border border-slate-700 rounded-xl p-6"
+      >
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
           <div>
             <span class="text-slate-500 block text-sm mb-1">OS:</span>

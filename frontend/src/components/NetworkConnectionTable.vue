@@ -1627,7 +1627,8 @@ const getConnectionSortIcon = (columnId: string): string => {
     <!-- Counts -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
       <div
-        class="bg-slate-800 border border-slate-700 rounded-xl p-5 border-t-4 border-t-blue-400 flex items-center justify-between">
+        class="bg-slate-800 border border-slate-700 rounded-xl p-5 border-t-4 border-t-blue-400 flex items-center justify-between"
+      >
         <div>
           <div class="text-slate-400 text-sm">TCP 连接</div>
           <div class="text-3xl font-bold">{{ connectionData?.counts?.tcp || 0 }}</div>
@@ -1635,7 +1636,8 @@ const getConnectionSortIcon = (columnId: string): string => {
         <div class="text-blue-400/20 text-4xl">T</div>
       </div>
       <div
-        class="bg-slate-800 border border-slate-700 rounded-xl p-5 border-t-4 border-t-violet-400 flex items-center justify-between">
+        class="bg-slate-800 border border-slate-700 rounded-xl p-5 border-t-4 border-t-violet-400 flex items-center justify-between"
+      >
         <div>
           <div class="text-slate-400 text-sm">UDP 连接</div>
           <div class="text-3xl font-bold">{{ connectionData?.counts?.udp || 0 }}</div>
@@ -1643,7 +1645,8 @@ const getConnectionSortIcon = (columnId: string): string => {
         <div class="text-violet-400/20 text-4xl">U</div>
       </div>
       <div
-        class="bg-slate-800 border border-slate-700 rounded-xl p-5 border-t-4 border-t-white flex items-center justify-between">
+        class="bg-slate-800 border border-slate-700 rounded-xl p-5 border-t-4 border-t-white flex items-center justify-between"
+      >
         <div>
           <div class="text-slate-400 text-sm">其他连接</div>
           <div class="text-3xl font-bold">{{ connectionData?.counts?.other || 0 }}</div>
@@ -1655,43 +1658,64 @@ const getConnectionSortIcon = (columnId: string): string => {
     <!-- 1. 聚合统计表格 -->
     <div>
       <!-- 聚合统计折叠栏 -->
-      <div @click="toggleMainAccordion('aggregation')"
-        class="py-2.5 border-b border-slate-700 mb-5 cursor-pointer select-none flex justify-between items-center group">
+      <div
+        @click="toggleMainAccordion('aggregation')"
+        class="py-2.5 border-b border-slate-700 mb-5 cursor-pointer select-none flex justify-between items-center group"
+      >
         <div class="flex items-center gap-4">
           <h3 class="text-lg font-semibold text-slate-200 group-hover:text-white">聚合统计</h3>
           <span class="text-xs text-slate-500">按 IP 地址聚合统计</span>
         </div>
-        <span class="text-slate-500 transition-transform duration-300"
-          :class="{ 'rotate-180': uiState.accordions.aggregation }">▼</span>
+        <span
+          class="text-slate-500 transition-transform duration-300"
+          :class="{ 'rotate-180': uiState.accordions.aggregation }"
+          >▼</span
+        >
       </div>
 
       <!-- 聚合统计内容 -->
-      <div v-show="uiState.accordions.aggregation"
-        class="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+      <div
+        v-show="uiState.accordions.aggregation"
+        class="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden"
+      >
         <!-- DNS 查询开关 + 流量统计起始时间 + 搜索框 -->
         <div
-          class="px-4 py-3 border-b border-slate-700 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+          class="px-4 py-3 border-b border-slate-700 flex flex-col md:flex-row items-start md:items-center justify-between gap-3"
+        >
           <!-- DNS 查询开关（左侧） -->
           <label class="flex items-center gap-2 cursor-pointer shrink-0 md:w-40">
-            <input type="checkbox" v-model="enableAggregationDns"
-              class="w-4 h-4 rounded border-slate-600 text-blue-500 focus:ring-blue-500 bg-slate-700" />
+            <input
+              type="checkbox"
+              v-model="enableAggregationDns"
+              class="w-4 h-4 rounded border-slate-600 text-blue-500 focus:ring-blue-500 bg-slate-700"
+            />
             <span class="text-sm text-slate-300">启用 DNS 查询</span>
-            <span v-if="aggregationQuerying" class="text-xs text-blue-400 animate-pulse">查询中...</span>
+            <span v-if="aggregationQuerying" class="text-xs text-blue-400 animate-pulse"
+              >查询中...</span
+            >
           </label>
           <!-- 流量统计起始时间（中间，PC端居中） -->
-          <div class="flex items-center gap-2 text-xs sm:text-sm shrink-0 md:flex-1 md:justify-center">
+          <div
+            class="flex items-center gap-2 text-xs sm:text-sm shrink-0 md:flex-1 md:justify-center"
+          >
             <span class="text-slate-400">流量统计起始时间:</span>
             <span class="text-slate-300 font-mono">{{
               formatCaptureStartTime(aggregationData?.capture_start_at)
-              }}</span>
+            }}</span>
           </div>
           <!-- 全局搜索框（右侧） -->
           <div class="relative w-full md:w-auto">
-            <input v-model="aggregationFilter" placeholder="搜索 IP、流量、连接数..."
-              class="bg-slate-900 border border-slate-600 text-white text-xs px-3 py-1.5 pr-8 rounded w-full md:w-56 min-w-32 outline-none focus:border-blue-400" />
-            <button v-if="aggregationFilter" @click="aggregationFilter = ''"
+            <input
+              v-model="aggregationFilter"
+              placeholder="搜索 IP、流量、连接数..."
+              class="bg-slate-900 border border-slate-600 text-white text-xs px-3 py-1.5 pr-8 rounded w-full md:w-56 min-w-32 outline-none focus:border-blue-400"
+            />
+            <button
+              v-if="aggregationFilter"
+              @click="aggregationFilter = ''"
               class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs w-4 h-4 flex items-center justify-center rounded hover:bg-slate-700 transition-colors"
-              title="清空搜索">
+              title="清空搜索"
+            >
               ×
             </button>
           </div>
@@ -1700,18 +1724,22 @@ const getConnectionSortIcon = (columnId: string): string => {
         <!-- Tab 切换导航 -->
         <div class="border-b border-slate-700">
           <nav class="flex" aria-label="Tabs">
-            <button v-for="group in [aggregationData.lan, aggregationData.wan, aggregationData.unknown]"
-              :key="group.key" @click="activeAggregationTab = group.key"
-              class="flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap" :class="[
+            <button
+              v-for="group in [aggregationData.lan, aggregationData.wan, aggregationData.unknown]"
+              :key="group.key"
+              @click="activeAggregationTab = group.key"
+              class="flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap"
+              :class="[
                 activeAggregationTab === group.key
                   ? 'border-blue-500 text-blue-400 bg-slate-700/30'
                   : 'border-transparent text-slate-400 hover:text-slate-300 hover:bg-slate-700/20',
-              ]">
+              ]"
+            >
               <span class="flex items-center justify-center gap-2">
                 <span>{{ group.name }}</span>
                 <span class="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">{{
                   group.ips.length
-                  }}</span>
+                }}</span>
               </span>
             </button>
           </nav>
@@ -1721,8 +1749,10 @@ const getConnectionSortIcon = (columnId: string): string => {
           <table class="w-full text-sm text-center border-collapse">
             <thead class="bg-slate-700/50 text-slate-300">
               <tr>
-                <th @click="toggleAggregationSort('ip')"
-                  class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors">
+                <th
+                  @click="toggleAggregationSort('ip')"
+                  class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors"
+                >
                   <div class="flex flex-col items-center gap-1">
                     <div class="flex items-center justify-center gap-1">
                       IP 地址
@@ -1730,8 +1760,10 @@ const getConnectionSortIcon = (columnId: string): string => {
                     </div>
                   </div>
                 </th>
-                <th @click="toggleAggregationSort('totalThroughput')"
-                  class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors">
+                <th
+                  @click="toggleAggregationSort('totalThroughput')"
+                  class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors"
+                >
                   <div class="flex flex-col items-center gap-1">
                     <div class="flex items-center justify-center gap-1">
                       总实时速率
@@ -1742,8 +1774,10 @@ const getConnectionSortIcon = (columnId: string): string => {
                     </span>
                   </div>
                 </th>
-                <th @click="toggleAggregationSort('uploadThroughput')"
-                  class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors">
+                <th
+                  @click="toggleAggregationSort('uploadThroughput')"
+                  class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors"
+                >
                   <div class="flex flex-col items-center gap-1">
                     <div class="flex items-center justify-center gap-1">
                       实时上行
@@ -1754,8 +1788,10 @@ const getConnectionSortIcon = (columnId: string): string => {
                     </span>
                   </div>
                 </th>
-                <th @click="toggleAggregationSort('downloadThroughput')"
-                  class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors">
+                <th
+                  @click="toggleAggregationSort('downloadThroughput')"
+                  class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors"
+                >
                   <div class="flex flex-col items-center gap-1">
                     <div class="flex items-center justify-center gap-1">
                       实时下行
@@ -1766,8 +1802,10 @@ const getConnectionSortIcon = (columnId: string): string => {
                     </span>
                   </div>
                 </th>
-                <th @click="toggleAggregationSort('totalTraffic')"
-                  class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors">
+                <th
+                  @click="toggleAggregationSort('totalTraffic')"
+                  class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors"
+                >
                   <div class="flex flex-col items-center gap-1">
                     <div class="flex items-center justify-center gap-1">
                       累计上下行流量
@@ -1778,8 +1816,10 @@ const getConnectionSortIcon = (columnId: string): string => {
                     </span>
                   </div>
                 </th>
-                <th @click="toggleAggregationSort('totalUpload')"
-                  class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors">
+                <th
+                  @click="toggleAggregationSort('totalUpload')"
+                  class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors"
+                >
                   <div class="flex flex-col items-center gap-1">
                     <div class="flex items-center justify-center gap-1">
                       累计上行流量
@@ -1790,8 +1830,10 @@ const getConnectionSortIcon = (columnId: string): string => {
                     </span>
                   </div>
                 </th>
-                <th @click="toggleAggregationSort('totalDownload')"
-                  class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors">
+                <th
+                  @click="toggleAggregationSort('totalDownload')"
+                  class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors"
+                >
                   <div class="flex flex-col items-center gap-1">
                     <div class="flex items-center justify-center gap-1">
                       累计下行流量
@@ -1802,8 +1844,10 @@ const getConnectionSortIcon = (columnId: string): string => {
                     </span>
                   </div>
                 </th>
-                <th @click="toggleAggregationSort('tcp')"
-                  class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors">
+                <th
+                  @click="toggleAggregationSort('tcp')"
+                  class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors"
+                >
                   <div class="flex flex-col items-center gap-1">
                     <div class="flex items-center justify-center gap-1">
                       TCP 连接
@@ -1814,8 +1858,10 @@ const getConnectionSortIcon = (columnId: string): string => {
                     </span>
                   </div>
                 </th>
-                <th @click="toggleAggregationSort('udp')"
-                  class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors">
+                <th
+                  @click="toggleAggregationSort('udp')"
+                  class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors"
+                >
                   <div class="flex flex-col items-center gap-1">
                     <div class="flex items-center justify-center gap-1">
                       UDP 连接
@@ -1826,8 +1872,10 @@ const getConnectionSortIcon = (columnId: string): string => {
                     </span>
                   </div>
                 </th>
-                <th @click="toggleAggregationSort('other')"
-                  class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors">
+                <th
+                  @click="toggleAggregationSort('other')"
+                  class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors"
+                >
                   <div class="flex flex-col items-center gap-1">
                     <div class="flex items-center justify-center gap-1">
                       其他连接
@@ -1842,10 +1890,14 @@ const getConnectionSortIcon = (columnId: string): string => {
             </thead>
             <tbody class="divide-y divide-slate-700">
               <!-- 分页后的数据 -->
-              <tr v-for="ipStats in paginatedAggregationIps" :key="ipStats.ip" :class="[
-                'hover:bg-slate-700/30 transition-colors',
-                getThroughputBgClass(ipStats.totalThroughput.unit),
-              ]">
+              <tr
+                v-for="ipStats in paginatedAggregationIps"
+                :key="ipStats.ip"
+                :class="[
+                  'hover:bg-slate-700/30 transition-colors',
+                  getThroughputBgClass(ipStats.totalThroughput.unit),
+                ]"
+              >
                 <td class="px-3 py-2 text-center">
                   <span class="font-mono text-slate-300" :title="ipStats.ip">{{
                     ipStats.ipFamily == "ipv4"
@@ -1856,32 +1908,32 @@ const getConnectionSortIcon = (columnId: string): string => {
                 <td class="px-3 py-2 text-center">
                   <span class="font-mono text-slate-200">{{
                     formatMetric(ipStats.totalThroughput.value, ipStats.totalThroughput.unit)
-                    }}</span>
+                  }}</span>
                 </td>
                 <td class="px-3 py-2 text-center">
                   <span class="font-mono text-orange-400">{{
                     formatMetric(ipStats.uploadThroughput.value, ipStats.uploadThroughput.unit)
-                    }}</span>
+                  }}</span>
                 </td>
                 <td class="px-3 py-2 text-center">
                   <span class="font-mono text-cyan-400">{{
                     formatMetric(ipStats.downloadThroughput.value, ipStats.downloadThroughput.unit)
-                    }}</span>
+                  }}</span>
                 </td>
                 <td class="px-3 py-2 text-center">
                   <span class="font-mono text-slate-200">{{
                     formatMetric(ipStats.totalTraffic.value, ipStats.totalTraffic.unit)
-                    }}</span>
+                  }}</span>
                 </td>
                 <td class="px-3 py-2 text-center">
                   <span class="font-mono text-orange-400">{{
                     formatMetric(ipStats.totalUpload.value, ipStats.totalUpload.unit)
-                    }}</span>
+                  }}</span>
                 </td>
                 <td class="px-3 py-2 text-center">
                   <span class="font-mono text-cyan-400">{{
                     formatMetric(ipStats.totalDownload.value, ipStats.totalDownload.unit)
-                    }}</span>
+                  }}</span>
                 </td>
                 <td class="px-3 py-2 text-center">
                   <span class="font-mono text-blue-400">{{ ipStats.tcpCount }}</span>
@@ -1904,51 +1956,78 @@ const getConnectionSortIcon = (columnId: string): string => {
         </div>
 
         <!-- 聚合统计分页控件 -->
-        <PaginationControls :pageSize="currentAggregationState.pageSize" :pageSizeOptions="aggregationPageSizeOptions"
+        <PaginationControls
+          :pageSize="currentAggregationState.pageSize"
+          :pageSizeOptions="aggregationPageSizeOptions"
           :isCustomPageSize="currentAggregationState.isCustomPageSize"
           v-model:customPageSize="currentAggregationState.customPageSize"
           v-model:pageInputValue="currentAggregationState.pageInputValue"
-          :currentPageIndex="currentAggregationState.currentPage" :pageCount="aggregationPageCount"
-          :totalRows="currentAggregationIps.length" :canPreviousPage="canAggregationPreviousPage"
-          :canNextPage="canAggregationNextPage" @switchToPresetSize="switchAggregationToPresetSize"
-          @handleCustomPageSizeChange="handleAggregationCustomPageSizeChange" @jumpToPage="jumpToAggregationPage"
-          @setPageIndex="setAggregationPageIndex" @previousPage="previousAggregationPage"
-          @nextPage="nextAggregationPage" />
+          :currentPageIndex="currentAggregationState.currentPage"
+          :pageCount="aggregationPageCount"
+          :totalRows="currentAggregationIps.length"
+          :canPreviousPage="canAggregationPreviousPage"
+          :canNextPage="canAggregationNextPage"
+          @switchToPresetSize="switchAggregationToPresetSize"
+          @handleCustomPageSizeChange="handleAggregationCustomPageSizeChange"
+          @jumpToPage="jumpToAggregationPage"
+          @setPageIndex="setAggregationPageIndex"
+          @previousPage="previousAggregationPage"
+          @nextPage="nextAggregationPage"
+        />
       </div>
     </div>
 
     <!-- 2. 连接列表 -->
     <div>
       <!-- 连接列表折叠栏 -->
-      <div @click="toggleMainAccordion('connectionList')"
-        class="py-2.5 border-b border-slate-700 mb-5 cursor-pointer select-none flex justify-between items-center group">
+      <div
+        @click="toggleMainAccordion('connectionList')"
+        class="py-2.5 border-b border-slate-700 mb-5 cursor-pointer select-none flex justify-between items-center group"
+      >
         <div class="flex items-center gap-4">
           <h3 class="text-lg font-semibold text-slate-200 group-hover:text-white">连接列表</h3>
         </div>
-        <span class="text-slate-500 transition-transform duration-300"
-          :class="{ 'rotate-180': uiState.accordions.connectionList }">▼</span>
+        <span
+          class="text-slate-500 transition-transform duration-300"
+          :class="{ 'rotate-180': uiState.accordions.connectionList }"
+          >▼</span
+        >
       </div>
 
       <!-- 连接列表内容 -->
-      <div v-show="uiState.accordions.connectionList"
-        class="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+      <div
+        v-show="uiState.accordions.connectionList"
+        class="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden"
+      >
         <!-- DNS 查询开关 + 搜索框 -->
         <div
-          class="px-4 py-3 border-b border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          class="px-4 py-3 border-b border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+        >
           <!-- DNS 查询开关 -->
           <label class="flex items-center gap-2 cursor-pointer shrink-0">
-            <input type="checkbox" v-model="enableConnectionsDns"
-              class="w-4 h-4 rounded border-slate-600 text-blue-500 focus:ring-blue-500 bg-slate-700" />
+            <input
+              type="checkbox"
+              v-model="enableConnectionsDns"
+              class="w-4 h-4 rounded border-slate-600 text-blue-500 focus:ring-blue-500 bg-slate-700"
+            />
             <span class="text-sm text-slate-300">启用 DNS 查询</span>
-            <span v-if="connectionsQuerying" class="text-xs text-blue-400 animate-pulse">查询中...</span>
+            <span v-if="connectionsQuerying" class="text-xs text-blue-400 animate-pulse"
+              >查询中...</span
+            >
           </label>
           <!-- 全局搜索框 -->
           <div class="relative w-full sm:w-auto">
-            <input v-model="globalFilter" placeholder="全局搜索..."
-              class="bg-slate-900 border border-slate-600 text-white text-xs px-3 py-1.5 pr-8 rounded w-full sm:w-56 min-w-32 outline-none focus:border-blue-400" />
-            <button v-if="globalFilter" @click="globalFilter = ''"
+            <input
+              v-model="globalFilter"
+              placeholder="全局搜索..."
+              class="bg-slate-900 border border-slate-600 text-white text-xs px-3 py-1.5 pr-8 rounded w-full sm:w-56 min-w-32 outline-none focus:border-blue-400"
+            />
+            <button
+              v-if="globalFilter"
+              @click="globalFilter = ''"
               class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs w-4 h-4 flex items-center justify-center rounded hover:bg-slate-700 transition-colors"
-              title="清空搜索">
+              title="清空搜索"
+            >
               ×
             </button>
           </div>
@@ -1958,19 +2037,28 @@ const getConnectionSortIcon = (columnId: string): string => {
           <table class="w-full text-sm text-center border-collapse">
             <thead class="bg-slate-700/50 text-slate-300">
               <tr>
-                <th v-for="header in table.getHeaderGroups()[0].headers" :key="header.id" @click="
-                  header.column.getCanSort()
-                    ? header.column.toggleSorting(
-                      undefined,
-                      header.column.getIsSorted() === false,
-                    )
-                    : null
-                  " class="px-3 py-3 font-medium text-center whitespace-nowrap" :class="{
+                <th
+                  v-for="header in table.getHeaderGroups()[0].headers"
+                  :key="header.id"
+                  @click="
+                    header.column.getCanSort()
+                      ? header.column.toggleSorting(
+                          undefined,
+                          header.column.getIsSorted() === false,
+                        )
+                      : null
+                  "
+                  class="px-3 py-3 font-medium text-center whitespace-nowrap"
+                  :class="{
                     'cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors':
                       header.column.getCanSort(),
-                  }">
+                  }"
+                >
                   <div class="flex items-center justify-center gap-1">
-                    <FlexRender :render="header.column.columnDef.header" :props="header.getContext()" />
+                    <FlexRender
+                      :render="header.column.columnDef.header"
+                      :props="header.getContext()"
+                    />
                     <span v-if="header.column.getCanSort()" class="text-slate-400">
                       {{ getConnectionSortIcon(header.column.id) }}
                     </span>
@@ -1978,15 +2066,22 @@ const getConnectionSortIcon = (columnId: string): string => {
                   <!-- 列过滤器 -->
                   <div v-if="header.column.getCanFilter()" class="mt-1 flex justify-center">
                     <div class="relative min-w-15">
-                      <input :value="header.column.getFilterValue() ?? ''" @input="
-                        (e) => header.column.setFilterValue((e.target as HTMLInputElement).value)
-                      " :placeholder="`过滤 ${header.column.columnDef.header as string}...`"
+                      <input
+                        :value="header.column.getFilterValue() ?? ''"
+                        @input="
+                          (e) => header.column.setFilterValue((e.target as HTMLInputElement).value)
+                        "
+                        :placeholder="`过滤 ${header.column.columnDef.header as string}...`"
                         class="bg-slate-900 border border-slate-600 text-xs px-1 py-0.5 pr-6 rounded w-full min-w-15 text-slate-200 outline-none"
-                        @click.stop />
+                        @click.stop
+                      />
 
-                      <button v-if="header.column.getFilterValue()" @click.stop="header.column.setFilterValue('')"
+                      <button
+                        v-if="header.column.getFilterValue()"
+                        @click.stop="header.column.setFilterValue('')"
                         class="absolute right-1 top-1/2 -translate-y-1/2 text-xs w-4 h-4 flex items-center justify-center rounded text-slate-500 hover:text-slate-300 hover:bg-slate-700 transition-colors"
-                        title="清空搜索">
+                        title="清空搜索"
+                      >
                         ×
                       </button>
                     </div>
@@ -1995,9 +2090,16 @@ const getConnectionSortIcon = (columnId: string): string => {
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-700">
-              <tr v-for="row in table.getPaginationRowModel().rows" :key="row.id"
-                class="hover:bg-slate-700/30 transition-colors">
-                <td v-for="cell in row.getVisibleCells()" :key="cell.id" class="px-3 py-2 text-center">
+              <tr
+                v-for="row in table.getPaginationRowModel().rows"
+                :key="row.id"
+                class="hover:bg-slate-700/30 transition-colors"
+              >
+                <td
+                  v-for="cell in row.getVisibleCells()"
+                  :key="cell.id"
+                  class="px-3 py-2 text-center"
+                >
                   <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
                 </td>
               </tr>
@@ -2009,14 +2111,24 @@ const getConnectionSortIcon = (columnId: string): string => {
         </div>
 
         <!-- 分页相关控件 -->
-        <PaginationControls v-model:pageSize="pageSize" v-model:isCustomPageSize="isCustomPageSize"
-          v-model:customPageSize="customPageSize" v-model:pageInputValue="pageInputValue"
-          :pageSizeOptions="pageSizeOptions" :currentPageIndex="currentPage" :pageCount="table.getPageCount()"
-          :totalRows="table.getFilteredRowModel().rows.length" :canPreviousPage="table.getCanPreviousPage()"
-          :canNextPage="table.getCanNextPage()" @switchToPresetSize="switchToPresetSize"
-          @handleCustomPageSizeChange="handleCustomPageSizeChange" @jumpToPage="jumpToPage"
-          @setPageIndex="(index) => table.setPageIndex(index)" @previousPage="table.previousPage()"
-          @nextPage="table.nextPage()" />
+        <PaginationControls
+          v-model:pageSize="pageSize"
+          v-model:isCustomPageSize="isCustomPageSize"
+          v-model:customPageSize="customPageSize"
+          v-model:pageInputValue="pageInputValue"
+          :pageSizeOptions="pageSizeOptions"
+          :currentPageIndex="currentPage"
+          :pageCount="table.getPageCount()"
+          :totalRows="table.getFilteredRowModel().rows.length"
+          :canPreviousPage="table.getCanPreviousPage()"
+          :canNextPage="table.getCanNextPage()"
+          @switchToPresetSize="switchToPresetSize"
+          @handleCustomPageSizeChange="handleCustomPageSizeChange"
+          @jumpToPage="jumpToPage"
+          @setPageIndex="(index) => table.setPageIndex(index)"
+          @previousPage="table.previousPage()"
+          @nextPage="table.nextPage()"
+        />
       </div>
     </div>
   </div>

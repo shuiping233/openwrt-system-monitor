@@ -212,10 +212,10 @@ function getMultiSeriesOption(
     toolbox: { show: true, feature: { saveAsImage: { show: true, title: "保存图片" } } },
     legend: legend
       ? {
-        show: true,
-        top: 30,
-        textStyle: { color: "#94a3b8" },
-      }
+          show: true,
+          top: 30,
+          textStyle: { color: "#94a3b8" },
+        }
       : undefined,
     xAxis: { type: "time", splitLine: { show: false }, axisLabel: { color: "#64748b" } },
     yAxis: {
@@ -991,8 +991,11 @@ onMounted(async () => {
       <div class="flex items-center gap-2">
         <div class="text-slate-400 text-sm text-right">全局图表时间范围 :</div>
         <div class="relative">
-          <select :value="settings.chart_time_range" @change="handleGlobalRangeChange"
-            class="bg-slate-900 border border-slate-600 text-white text-xs px-2 py-1 rounded outline-none focus:border-blue-500">
+          <select
+            :value="settings.chart_time_range"
+            @change="handleGlobalRangeChange"
+            class="bg-slate-900 border border-slate-600 text-white text-xs px-2 py-1 rounded outline-none focus:border-blue-500"
+          >
             <option v-for="r in TimeRanges" :key="r.value" :value="r.value">{{ r.label }}</option>
           </select>
         </div>
@@ -1001,22 +1004,33 @@ onMounted(async () => {
 
     <!-- 基本指标分类 -->
     <div>
-      <div @click="toggleAccordion('basic')"
-        class="py-2.5 border-b border-slate-700 mb-5 cursor-pointer select-none flex justify-between items-center group">
+      <div
+        @click="toggleAccordion('basic')"
+        class="py-2.5 border-b border-slate-700 mb-5 cursor-pointer select-none flex justify-between items-center group"
+      >
         <h3 class="text-lg font-semibold text-slate-200 group-hover:text-white">基本指标</h3>
-        <span class="text-slate-500 transition-transform duration-300"
-          :class="{ 'rotate-180': uiState.accordions.basic }">▼</span>
+        <span
+          class="text-slate-500 transition-transform duration-300"
+          :class="{ 'rotate-180': uiState.accordions.basic }"
+          >▼</span
+        >
       </div>
       <div v-show="uiState.accordions.basic" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div v-for="[key, opt] in getBasicCharts" :key="key"
-          class="bg-slate-800 border border-slate-700 rounded-xl p-4 relative group">
-          <select :value="chartStates[key]?.range || globalTimeRange" @change="
-            (e) => {
-              chartStates[key] = { range: Number((e.target as HTMLSelectElement).value) };
-              handleRangeChange(key);
-            }
-          "
-            class="absolute top-6 right-16 z-10 bg-slate-900 border border-slate-600 text-xs text-slate-300 px-2 py-1 rounded outline-none opacity-100 transition-opacity">
+        <div
+          v-for="[key, opt] in getBasicCharts"
+          :key="key"
+          class="bg-slate-800 border border-slate-700 rounded-xl p-4 relative group"
+        >
+          <select
+            :value="chartStates[key]?.range || globalTimeRange"
+            @change="
+              (e) => {
+                chartStates[key] = { range: Number((e.target as HTMLSelectElement).value) };
+                handleRangeChange(key);
+              }
+            "
+            class="absolute top-6 right-16 z-10 bg-slate-900 border border-slate-600 text-xs text-slate-300 px-2 py-1 rounded outline-none opacity-100 transition-opacity"
+          >
             <option v-for="r in TimeRanges" :key="r.value" :value="r.value">{{ r.label }}</option>
           </select>
           <v-chart :option="opt" :autoresize="true" style="height: 320px" />
@@ -1026,22 +1040,33 @@ onMounted(async () => {
 
     <!-- CPU 分类 -->
     <div>
-      <div @click="toggleAccordion('cpu')"
-        class="py-2.5 border-b border-slate-700 mb-5 cursor-pointer select-none flex justify-between items-center group">
+      <div
+        @click="toggleAccordion('cpu')"
+        class="py-2.5 border-b border-slate-700 mb-5 cursor-pointer select-none flex justify-between items-center group"
+      >
         <h3 class="text-lg font-semibold text-slate-200 group-hover:text-white">CPU</h3>
-        <span class="text-slate-500 transition-transform duration-300"
-          :class="{ 'rotate-180': uiState.accordions.cpu }">▼</span>
+        <span
+          class="text-slate-500 transition-transform duration-300"
+          :class="{ 'rotate-180': uiState.accordions.cpu }"
+          >▼</span
+        >
       </div>
       <div v-show="uiState.accordions.cpu" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div v-for="[key, opt] in getCpuCoreCharts" :key="key"
-          class="bg-slate-800 border border-slate-700 rounded-xl p-4 relative group">
-          <select :value="chartStates[key]?.range || globalTimeRange" @change="
-            (e) => {
-              chartStates[key] = { range: Number((e.target as HTMLSelectElement).value) };
-              handleRangeChange(key);
-            }
-          "
-            class="absolute top-6 right-16 z-10 bg-slate-900 border border-slate-600 text-xs text-slate-300 px-2 py-1 rounded outline-none opacity-100 transition-opacity">
+        <div
+          v-for="[key, opt] in getCpuCoreCharts"
+          :key="key"
+          class="bg-slate-800 border border-slate-700 rounded-xl p-4 relative group"
+        >
+          <select
+            :value="chartStates[key]?.range || globalTimeRange"
+            @change="
+              (e) => {
+                chartStates[key] = { range: Number((e.target as HTMLSelectElement).value) };
+                handleRangeChange(key);
+              }
+            "
+            class="absolute top-6 right-16 z-10 bg-slate-900 border border-slate-600 text-xs text-slate-300 px-2 py-1 rounded outline-none opacity-100 transition-opacity"
+          >
             <option v-for="r in TimeRanges" :key="r.value" :value="r.value">{{ r.label }}</option>
           </select>
           <v-chart :option="opt" :autoresize="true" style="height: 320px" />
@@ -1051,22 +1076,33 @@ onMounted(async () => {
 
     <!-- 内存分类 -->
     <div>
-      <div @click="toggleAccordion('memory')"
-        class="py-2.5 border-b border-slate-700 mb-5 cursor-pointer select-none flex justify-between items-center group">
+      <div
+        @click="toggleAccordion('memory')"
+        class="py-2.5 border-b border-slate-700 mb-5 cursor-pointer select-none flex justify-between items-center group"
+      >
         <h3 class="text-lg font-semibold text-slate-200 group-hover:text-white">内存</h3>
-        <span class="text-slate-500 transition-transform duration-300"
-          :class="{ 'rotate-180': uiState.accordions.memory }">▼</span>
+        <span
+          class="text-slate-500 transition-transform duration-300"
+          :class="{ 'rotate-180': uiState.accordions.memory }"
+          >▼</span
+        >
       </div>
       <div v-show="uiState.accordions.memory" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div v-for="[key, opt] in getMemoryCharts" :key="key"
-          class="bg-slate-800 border border-slate-700 rounded-xl p-4 relative group">
-          <select :value="chartStates[key]?.range || globalTimeRange" @change="
-            (e) => {
-              chartStates[key] = { range: Number((e.target as HTMLSelectElement).value) };
-              handleRangeChange(key);
-            }
-          "
-            class="absolute top-6 right-16 z-10 bg-slate-900 border border-slate-600 text-xs text-slate-300 px-2 py-1 rounded outline-none opacity-100 transition-opacity">
+        <div
+          v-for="[key, opt] in getMemoryCharts"
+          :key="key"
+          class="bg-slate-800 border border-slate-700 rounded-xl p-4 relative group"
+        >
+          <select
+            :value="chartStates[key]?.range || globalTimeRange"
+            @change="
+              (e) => {
+                chartStates[key] = { range: Number((e.target as HTMLSelectElement).value) };
+                handleRangeChange(key);
+              }
+            "
+            class="absolute top-6 right-16 z-10 bg-slate-900 border border-slate-600 text-xs text-slate-300 px-2 py-1 rounded outline-none opacity-100 transition-opacity"
+          >
             <option v-for="r in TimeRanges" :key="r.value" :value="r.value">{{ r.label }}</option>
           </select>
           <v-chart :option="opt" :autoresize="true" style="height: 320px" />
@@ -1076,22 +1112,33 @@ onMounted(async () => {
 
     <!-- 网络分类 -->
     <div>
-      <div @click="toggleAccordion('network')"
-        class="py-2.5 border-b border-slate-700 mb-5 cursor-pointer select-none flex justify-between items-center group">
+      <div
+        @click="toggleAccordion('network')"
+        class="py-2.5 border-b border-slate-700 mb-5 cursor-pointer select-none flex justify-between items-center group"
+      >
         <h3 class="text-lg font-semibold text-slate-200 group-hover:text-white">网络</h3>
-        <span class="text-slate-500 transition-transform duration-300"
-          :class="{ 'rotate-180': uiState.accordions.network }">▼</span>
+        <span
+          class="text-slate-500 transition-transform duration-300"
+          :class="{ 'rotate-180': uiState.accordions.network }"
+          >▼</span
+        >
       </div>
       <div v-show="uiState.accordions.network" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div v-for="[key, opt] in getNetworkCharts" :key="key"
-          class="bg-slate-800 border border-slate-700 rounded-xl p-4 relative group lg:col-span-2">
-          <select :value="chartStates[key]?.range || globalTimeRange" @change="
-            (e) => {
-              chartStates[key] = { range: Number((e.target as HTMLSelectElement).value) };
-              handleRangeChange(key);
-            }
-          "
-            class="absolute top-6 right-16 z-10 bg-slate-900 border border-slate-600 text-xs text-slate-300 px-2 py-1 rounded outline-none opacity-100 transition-opacity">
+        <div
+          v-for="[key, opt] in getNetworkCharts"
+          :key="key"
+          class="bg-slate-800 border border-slate-700 rounded-xl p-4 relative group lg:col-span-2"
+        >
+          <select
+            :value="chartStates[key]?.range || globalTimeRange"
+            @change="
+              (e) => {
+                chartStates[key] = { range: Number((e.target as HTMLSelectElement).value) };
+                handleRangeChange(key);
+              }
+            "
+            class="absolute top-6 right-16 z-10 bg-slate-900 border border-slate-600 text-xs text-slate-300 px-2 py-1 rounded outline-none opacity-100 transition-opacity"
+          >
             <option v-for="r in TimeRanges" :key="r.value" :value="r.value">{{ r.label }}</option>
           </select>
           <v-chart :option="opt" :autoresize="true" style="height: 320px" />
@@ -1101,22 +1148,33 @@ onMounted(async () => {
 
     <!-- 存储分类 -->
     <div>
-      <div @click="toggleAccordion('storage')"
-        class="py-2.5 border-b border-slate-700 mb-5 cursor-pointer select-none flex justify-between items-center group">
+      <div
+        @click="toggleAccordion('storage')"
+        class="py-2.5 border-b border-slate-700 mb-5 cursor-pointer select-none flex justify-between items-center group"
+      >
         <h3 class="text-lg font-semibold text-slate-200 group-hover:text-white">存储</h3>
-        <span class="text-slate-500 transition-transform duration-300"
-          :class="{ 'rotate-180': uiState.accordions.storage }">▼</span>
+        <span
+          class="text-slate-500 transition-transform duration-300"
+          :class="{ 'rotate-180': uiState.accordions.storage }"
+          >▼</span
+        >
       </div>
       <div v-show="uiState.accordions.storage" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div v-for="[key, opt] in getStorageCharts" :key="key"
-          class="bg-slate-800 border border-slate-700 rounded-xl p-4 relative group">
-          <select :value="chartStates[key]?.range || globalTimeRange" @change="
-            (e) => {
-              chartStates[key] = { range: Number((e.target as HTMLSelectElement).value) };
-              handleRangeChange(key);
-            }
-          "
-            class="absolute top-6 right-16 z-10 bg-slate-900 border border-slate-600 text-xs text-slate-300 px-2 py-1 rounded outline-none opacity-100 transition-opacity">
+        <div
+          v-for="[key, opt] in getStorageCharts"
+          :key="key"
+          class="bg-slate-800 border border-slate-700 rounded-xl p-4 relative group"
+        >
+          <select
+            :value="chartStates[key]?.range || globalTimeRange"
+            @change="
+              (e) => {
+                chartStates[key] = { range: Number((e.target as HTMLSelectElement).value) };
+                handleRangeChange(key);
+              }
+            "
+            class="absolute top-6 right-16 z-10 bg-slate-900 border border-slate-600 text-xs text-slate-300 px-2 py-1 rounded outline-none opacity-100 transition-opacity"
+          >
             <option v-for="r in TimeRanges" :key="r.value" :value="r.value">{{ r.label }}</option>
           </select>
           <v-chart :option="opt" :autoresize="true" style="height: 320px" />
