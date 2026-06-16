@@ -32,21 +32,17 @@ jobs:
       - name: Display Go version
         run: go version
 
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+      - uses: voidzero-dev/setup-vp@v1
         with:
-          version: 10
+          node-version: "lts"
+          sfw: true
+          working-directory: frontend
+          cache: true
+          run-install: true
 
-      - name: Use Node.js 24
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: "pnpm"
-          cache-dependency-path: frontend/pnpm-lock.yaml
-
-      - name: Install frontend dependencies
-        working-directory: ./frontend
-        run: pnpm install --frozen-lockfile
+        
+      - name: Set executable
+        run: chmod -R +x ./scripts/
 
       - name: Run GoReleaser build all things
         uses: goreleaser/goreleaser-action@v6
