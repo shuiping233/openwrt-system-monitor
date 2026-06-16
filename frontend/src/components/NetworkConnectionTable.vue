@@ -552,6 +552,16 @@ const aggregationData = computed(
         unit: detail.total_traffic.unit,
         bytes: metricUnitToBytes(detail.total_traffic),
       },
+      totalUpload: {
+        value: detail.total_outgoing.value,
+        unit: detail.total_outgoing.unit,
+        bytes: metricUnitToBytes(detail.total_outgoing),
+      },
+      totalDownload: {
+        value: detail.total_incoming.value,
+        unit: detail.total_incoming.unit,
+        bytes: metricUnitToBytes(detail.total_incoming),
+      },
       tcpCount: detail.tcp,
       udpCount: detail.udp,
       otherCount: detail.other,
