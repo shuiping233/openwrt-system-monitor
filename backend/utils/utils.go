@@ -230,3 +230,10 @@ func SetJsonHeader(w http.ResponseWriter) {
 func SetGzipHeader(w http.ResponseWriter) {
 	w.Header().Set("Content-Encoding", "gzip")
 }
+
+func ValueSmoothing(current, previous float64, alpha float64) float64 {
+	if previous <= 0 {
+		return current
+	}
+	return (alpha * current) + ((1 - alpha) * previous)
+}

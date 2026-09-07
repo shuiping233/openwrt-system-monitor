@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
+	"math"
 	"net/netip"
 	"runtime"
 	"sync"
@@ -32,7 +33,13 @@ var (
 	ipv4Broadcast = netip.AddrFrom4([4]byte{255, 255, 255, 255})
 )
 
+type frameSnap struct {
+	packets uint64
+	bytes   uint64
+}
+
 type IPMetrics struct {
+	// 汇总字节速率
 	// 瞬时累加速率 (每秒 frame 开始时清零)
 	UploadRate   float64
 	DownloadRate float64
@@ -42,9 +49,18 @@ type IPMetrics struct {
 	// 累计总量
 	TotalUpload   uint64
 	TotalDownload uint64
-	Tcp           int32
-	Udp           int32
-	Other         int32
+
+	// 包速率
+	UploadPackets      uint64
+	DownloadPackets    uint64
+	UploadPkts         float64
+	DownloadPkts       float64
+	SmoothUploadPkts   float64
+	SmoothDownloadPkts float64
+
+	Tcp   int32
+	Udp   int32
+	Other int32
 }
 
 type IpStatus struct {
@@ -142,7 +158,7 @@ func (svc *EbpfNetTrafficService) InitEbpfInterfaceDevice(targetInterface string
 
 func (svc *EbpfNetTrafficService) frame(
 	objs *bpf.BpfObjects,
-	lastSnapshots map[bpf.BpfFlowKey]uint64,
+	lastSnapshots map[bpf.BpfFlowKey]frameSnap,
 ) {
 	if !isCapturing(objs) {
 		return
@@ -187,26 +203,36 @@ func (svc *EbpfNetTrafficService) frame(
 		for index := range count {
 			key := keys[index]
 			var totalBytes uint64
+			var totalPackets uint64
 			// 聚合所有 CPU 的字节数
 			for cpu := range numCpu {
-				totalBytes += vals[index*numCpu+cpu].Bytes
+				idx := index*numCpu + cpu
+				totalPackets += vals[idx].Packets
+				totalBytes += vals[idx].Bytes
 			}
 
 			// 计算增量 (Delta)
-			lastBytes := lastSnapshots[key] // map 取不到返回 0，逻辑自然成立
-			delta := uint64(0)
-			if totalBytes > lastBytes {
-				delta = totalBytes - lastBytes
+			snap := lastSnapshots[key] // map 取不到返回 0，逻辑自然成立
+			packetsDelta := totalPackets - snap.packets
+			bytesDelta := uint64(0)
+
+			if totalBytes > snap.bytes {
+				bytesDelta = totalBytes - snap.bytes
 			}
 
 			// 更新快照
-			lastSnapshots[key] = totalBytes
+			lastSnapshots[key] = frameSnap{
+				packets: totalPackets,
+				bytes:   totalBytes,
+			}
 
 			srcAddr := svc.parseToAddr(key.SrcAddr, key.Family)
 			dstAddr := svc.parseToAddr(key.DstAddr, key.Family)
-			rate := float64(delta) / dt
+			ratePackets := float64(packetsDelta) / dt
+			rateBytes := float64(bytesDelta) / dt
 
-			svc.trafficAggregateWithDuration(srcAddr, dstAddr, delta, rate, key.Proto)
+			svc.trafficAggregateWithDuration(srcAddr, dstAddr, bytesDelta, packetsDelta,
+				rateBytes, ratePackets, key.Proto)
 		}
 		if err != nil || count < batchSize {
 			break
@@ -220,21 +246,32 @@ func (svc *EbpfNetTrafficService) frame(
 	svc.mutex.Unlock()
 }
 
-func (svc *EbpfNetTrafficService) trafficAggregateWithDuration(srcAddr netip.Addr, dstAddr netip.Addr, delta uint64, rate float64, proto uint8) {
-	if delta == 0 {
+func (svc *EbpfNetTrafficService) trafficAggregateWithDuration(
+	srcAddr, dstAddr netip.Addr,
+	bytesDelta uint64, packetsDelta uint64,
+	rateBytes float64, ratePackets float64,
+	proto uint8,
+) {
+	if bytesDelta == 0 && packetsDelta == 0 {
 		return
 	}
 	// 统计上传
 	if !IsIgnoredAddr(srcAddr) {
 		metric := getOrCreateMetrics(srcAddr, svc.metricsMap)
+		// 连接数（每个活跃流只加1，不再除以2）
 		matchProtoAndCount(proto, metric)
 
+		// 流量和包数累加（方向根据是否为LAN判断）
 		if svc.IsLanIp(srcAddr) {
-			metric.UploadRate += rate
-			metric.TotalUpload += delta
+			metric.UploadRate += rateBytes
+			metric.TotalUpload += bytesDelta
+			metric.UploadPkts += ratePackets
+			metric.UploadPackets += packetsDelta
 		} else {
-			metric.DownloadRate += rate
-			metric.TotalDownload += delta
+			metric.DownloadRate += rateBytes
+			metric.TotalDownload += bytesDelta
+			metric.DownloadPkts += ratePackets
+			metric.DownloadPackets += packetsDelta
 		}
 	}
 	// 统计下载
@@ -243,11 +280,15 @@ func (svc *EbpfNetTrafficService) trafficAggregateWithDuration(srcAddr netip.Add
 		matchProtoAndCount(proto, metric)
 
 		if svc.IsLanIp(dstAddr) {
-			metric.DownloadRate += rate
-			metric.TotalDownload += delta
+			metric.DownloadRate += rateBytes
+			metric.TotalDownload += bytesDelta
+			metric.DownloadPkts += ratePackets
+			metric.DownloadPackets += packetsDelta
 		} else {
-			metric.UploadRate += rate
-			metric.TotalUpload += delta
+			metric.UploadRate += rateBytes
+			metric.TotalUpload += bytesDelta
+			metric.UploadPkts += ratePackets
+			metric.UploadPackets += packetsDelta
 		}
 	}
 }
@@ -278,7 +319,7 @@ func (svc *EbpfNetTrafficService) Run(ctx context.Context) {
 	defer gcTicker.Stop()
 
 	keyExpiredTime := svc.keyExpiredTime
-	lastSnapshots := make(map[bpf.BpfFlowKey]uint64)
+	lastSnapshots := make(map[bpf.BpfFlowKey]frameSnap)
 	atomic.StoreInt64(&svc.lastRequestTimeUnix, time.Now().UnixNano())
 	atomic.StoreInt64(&svc.captureStartAt, time.Now().UnixNano())
 
@@ -306,7 +347,7 @@ func (svc *EbpfNetTrafficService) Run(ctx context.Context) {
 	}
 }
 
-func (svc *EbpfNetTrafficService) shutdownCapture(objs *bpf.BpfObjects, lastSnapshots map[bpf.BpfFlowKey]uint64) {
+func (svc *EbpfNetTrafficService) shutdownCapture(objs *bpf.BpfObjects, lastSnapshots map[bpf.BpfFlowKey]frameSnap) {
 	stopCapture(objs)
 	clearFlowMap(objs.FlowMap, svc.possibleCpuNumber)
 	svc.mutex.Lock()
@@ -387,6 +428,21 @@ func (svc *EbpfNetTrafficService) GetAggregationTrafficMetric() *model.Aggregati
 			Unit:  unit,
 		}
 
+		downloadPkts := model.MetricUnit{
+			Value: math.Trunc(value.SmoothDownloadPkts),
+			Unit:  model.Pkts,
+		}
+
+		uploadPkts := model.MetricUnit{
+			Value: math.Trunc(value.SmoothUploadPkts),
+			Unit:  model.Pkts,
+		}
+
+		totalPkts := model.MetricUnit{
+			Value: math.Trunc(value.SmoothDownloadPkts) + math.Trunc(value.SmoothUploadPkts),
+			Unit:  model.Pkts,
+		}
+
 		ipFamily := model.IpFamilyTypeIpv4
 		if ip.Is6() {
 			ipFamily = model.IpFamilyTypeIpv6
@@ -402,9 +458,12 @@ func (svc *EbpfNetTrafficService) GetAggregationTrafficMetric() *model.Aggregati
 			TotalIncoming:   totalIncoming,
 			TotalOutgoing:   totalOutgoing,
 			TotalTraffic:    totalTraffic,
-			Tcp:             value.Tcp / 2,
-			Udp:             value.Udp / 2,
-			Other:           value.Other / 2,
+			UploadPkts:      downloadPkts,
+			DownloadPkts:    uploadPkts,
+			TotalPkts:       totalPkts,
+			Tcp:             value.Tcp,
+			Udp:             value.Udp,
+			Other:           value.Other,
 		})
 	}
 	return result
@@ -418,18 +477,29 @@ func (svc *EbpfNetTrafficService) applySmoothing() {
 
 	for _, m := range svc.metricsMap {
 		// 对上传速率进行平滑
-		if m.SmoothUploadRate == 0 {
-			m.SmoothUploadRate = m.UploadRate
-		} else {
-			m.SmoothUploadRate = (alpha * m.UploadRate) + ((1 - alpha) * m.SmoothUploadRate)
-		}
+		m.SmoothUploadRate = utils.ValueSmoothing(
+			m.UploadRate,
+			m.SmoothUploadRate,
+			alpha,
+		)
 
-		// 对下载速率进行平滑
-		if m.SmoothDownloadRate == 0 {
-			m.SmoothDownloadRate = m.DownloadRate
-		} else {
-			m.SmoothDownloadRate = (alpha * m.DownloadRate) + ((1 - alpha) * m.SmoothDownloadRate)
-		}
+		m.SmoothDownloadRate = utils.ValueSmoothing(
+			m.DownloadRate,
+			m.SmoothDownloadRate,
+			alpha,
+		)
+
+		m.SmoothUploadPkts = utils.ValueSmoothing(
+			m.UploadPkts,
+			m.SmoothUploadPkts,
+			alpha,
+		)
+
+		m.SmoothDownloadPkts = utils.ValueSmoothing(
+			m.DownloadPkts,
+			m.SmoothDownloadPkts,
+			alpha,
+		)
 
 		// 补偿：如果平滑后的值极小（比如小于 1B/s），直接归零，防止 UI 长期显示微小余波
 		if m.SmoothUploadRate < 1 {
@@ -438,6 +508,13 @@ func (svc *EbpfNetTrafficService) applySmoothing() {
 		if m.SmoothDownloadRate < 1 {
 			m.SmoothDownloadRate = 0
 		}
+		if m.SmoothUploadPkts < 1 {
+			m.SmoothUploadPkts = 0
+		}
+		if m.SmoothDownloadPkts < 1 {
+			m.SmoothDownloadPkts = 0
+		}
+
 	}
 }
 
@@ -460,7 +537,7 @@ func (svc *EbpfNetTrafficService) parseToAddr(addr [4]uint32, family uint8) neti
 func (svc *EbpfNetTrafficService) cleanupExpiredFlows(
 	objs *bpf.BpfObjects,
 	timeout time.Duration,
-	lastSnapshots map[bpf.BpfFlowKey]uint64,
+	lastSnapshots map[bpf.BpfFlowKey]frameSnap,
 ) {
 	nowKtime := getKtimeNS()
 	timeoutNS := uint64(timeout.Nanoseconds())

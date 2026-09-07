@@ -61,11 +61,13 @@ const (
 	PetaByte = "PB"
 	Percent  = "%"
 	Celsius  = "°C"
+	Pkts     = "pkts."
 )
 
 var (
 	RateUnitList                        = []string{BSecond, KbSecond, MbSecond, GbSecond, TbSecond, PbSecond}
 	DataUnitList                        = []string{Byte, KiloByte, MegaByte, GigaByte, TeraByte, PetaByte}
+	PktsUnitList                        = []string{"pkts."}
 	InternalNetworkDeviceNamePrefixList = []string{"br-lan", "docker", "tun"}
 	JsonCacheKeyStaticMetric            = "StaticMetric"
 	JsonCacheKeyDynamicMetric           = "DynamicMetric"
@@ -274,6 +276,9 @@ type AggregationTrafficDetails struct {
 	TotalIncoming   MetricUnit    `json:"total_incoming"`
 	TotalOutgoing   MetricUnit    `json:"total_outgoing"`
 	TotalTraffic    MetricUnit    `json:"total_traffic"`
+	UploadPkts      MetricUnit    `json:"upload_pkts"`
+	DownloadPkts    MetricUnit    `json:"download_pkts"`
+	TotalPkts       MetricUnit    `json:"total_pkts"`
 	Tcp             int32         `json:"tcp"`
 	Udp             int32         `json:"udp"`
 	Other           int32         `json:"other"` // 指的是"当前时刻此ip的非tcp/udp连接数"

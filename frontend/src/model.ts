@@ -128,6 +128,9 @@ export interface AggregationTrafficDetails {
   total_incoming: MetricUnit;
   total_outgoing: MetricUnit;
   total_traffic: MetricUnit;
+  upload_pkts: MetricUnit;
+  download_pkts: MetricUnit;
+  total_pkts: MetricUnit;
   tcp: number;
   udp: number;
   other: number;

@@ -127,15 +127,19 @@ func readSystemUptime(reader FsReaderInterface) string {
 	// 省略为 0 的段
 	builder := strings.Builder{}
 	if day > 0 {
-		builder.WriteString(strconv.Itoa(day) + "d ")
+		builder.WriteString(strconv.Itoa(day))
+		builder.WriteString("d ")
 	}
 	if hour > 0 {
-		builder.WriteString(strconv.Itoa(hour) + "h ")
+		builder.WriteString(strconv.Itoa(hour))
+		builder.WriteString("h ")
 	}
 	if minute > 0 {
-		builder.WriteString(strconv.Itoa(minute) + "m ")
+		builder.WriteString(strconv.Itoa(minute))
+		builder.WriteString("m ")
 	}
-	builder.WriteString(strconv.Itoa(s) + "s")
+	builder.WriteString(strconv.Itoa(s))
+	builder.WriteString("s")
 	return builder.String()
 }
 
