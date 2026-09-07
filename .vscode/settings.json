@@ -3,9 +3,11 @@
         "CLSACT",
         "IGMP",
         "Ktime",
+        "Memlock",
         "netlink",
         "Nsec",
         "OSPF",
+        "Pkts",
         "Qdisc",
         "qdiscs",
         "SCTP"
