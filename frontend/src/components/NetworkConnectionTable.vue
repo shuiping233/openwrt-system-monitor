@@ -1949,7 +1949,7 @@ const getConnectionSortIcon = (columnId: string): string => {
                 >
                   <div class="flex flex-col items-center gap-1">
                     <div class="flex items-center justify-center gap-1">
-                      TCP 连接
+                      TCP 活跃流数
                       <span class="text-slate-400">{{ getSortIcon("tcp") }}</span>
                     </div>
                     <span class="text-blue-400 font-mono font-semibold">
@@ -1963,7 +1963,7 @@ const getConnectionSortIcon = (columnId: string): string => {
                 >
                   <div class="flex flex-col items-center gap-1">
                     <div class="flex items-center justify-center gap-1">
-                      UDP 连接
+                      UDP 活跃流数
                       <span class="text-slate-400">{{ getSortIcon("udp") }}</span>
                     </div>
                     <span class="text-violet-400 font-mono font-semibold">
@@ -1977,7 +1977,7 @@ const getConnectionSortIcon = (columnId: string): string => {
                 >
                   <div class="flex flex-col items-center gap-1">
                     <div class="flex items-center justify-center gap-1">
-                      其他连接
+                      其他活跃流数
                       <span class="text-slate-400">{{ getSortIcon("other") }}</span>
                     </div>
                     <span class="text-slate-200 font-mono font-semibold">
