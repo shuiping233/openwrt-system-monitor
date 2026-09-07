@@ -1687,7 +1687,7 @@ const getConnectionSortIcon = (columnId: string): string => {
         class="bg-slate-800 border border-slate-700 rounded-xl p-5 border-t-4 border-t-blue-400 flex items-center justify-between"
       >
         <div>
-          <div class="text-slate-400 text-sm">TCP 连接</div>
+          <div class="text-slate-400 text-sm">TCP 活跃流数</div>
           <div class="text-3xl font-bold">{{ connectionData?.counts?.tcp || 0 }}</div>
         </div>
         <div class="text-blue-400/20 text-4xl">T</div>
@@ -1696,7 +1696,7 @@ const getConnectionSortIcon = (columnId: string): string => {
         class="bg-slate-800 border border-slate-700 rounded-xl p-5 border-t-4 border-t-violet-400 flex items-center justify-between"
       >
         <div>
-          <div class="text-slate-400 text-sm">UDP 连接</div>
+          <div class="text-slate-400 text-sm">UDP 活跃流数</div>
           <div class="text-3xl font-bold">{{ connectionData?.counts?.udp || 0 }}</div>
         </div>
         <div class="text-violet-400/20 text-4xl">U</div>
@@ -1705,7 +1705,7 @@ const getConnectionSortIcon = (columnId: string): string => {
         class="bg-slate-800 border border-slate-700 rounded-xl p-5 border-t-4 border-t-white flex items-center justify-between"
       >
         <div>
-          <div class="text-slate-400 text-sm">其他连接</div>
+          <div class="text-slate-400 text-sm">其他活跃流数</div>
           <div class="text-3xl font-bold">{{ connectionData?.counts?.other || 0 }}</div>
         </div>
         <div class="text-white/20 text-4xl">?</div>
