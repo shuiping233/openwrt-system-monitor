@@ -311,6 +311,9 @@ type SortColumn =
   | "totalTraffic"
   | "totalUpload"
   | "totalDownload"
+  | "uploadPkts"
+  | "downloadPkts"
+  | "totalPkts"
   | "tcp"
   | "udp"
   | "other";
@@ -386,6 +389,9 @@ interface IPStats {
   totalTraffic: TrafficMetric; // 累计上下行流量 - total_traffic
   totalUpload: TrafficMetric; // 累计上行流量 - total_incoming
   totalDownload: TrafficMetric; // 累计下行流量 - total_outgoing
+  uploadPkts: TrafficMetric; // 每秒上行包数
+  downloadPkts: TrafficMetric; // 每秒下行包数
+  totalPkts: TrafficMetric; // 每秒总包数
   tcpCount: number;
   udpCount: number;
   otherCount: number;
@@ -396,11 +402,14 @@ interface GroupStats {
   key: IpAddressType;
   ips: IPStats[];
   totalThroughput: number;
-  UploadThroughput: number;
-  DownloadThroughput: number;
+  uploadThroughput: number;
+  downloadThroughput: number;
   totalTraffic: number;
   totalUpload: number;
   totalDownload: number;
+  uploadPkts: number;
+  downloadPkts: number;
+  totalPkts: number;
   totalTcp: number;
   totalUdp: number;
   totalOther: number;
@@ -442,6 +451,15 @@ const sortIPStats = (ips: IPStats[], column: SortColumn, direction: SortDirectio
       case "totalDownload":
         comparison = a.totalDownload.bytes - b.totalDownload.bytes;
         break;
+      case "uploadPkts":
+        comparison = a.uploadPkts.value - b.uploadPkts.value;
+        break;
+      case "downloadPkts":
+        comparison = a.downloadPkts.value - b.downloadPkts.value;
+        break;
+      case "totalPkts":
+        comparison = a.totalPkts.value - b.totalPkts.value;
+        break;
       case "tcp":
         comparison = a.tcpCount - b.tcpCount;
         break;
@@ -459,62 +477,74 @@ const sortIPStats = (ips: IPStats[], column: SortColumn, direction: SortDirectio
 };
 
 // 过滤函数
+// 过滤函数 - 重构版
 const filterIPStats = (ips: IPStats[], filter: string): IPStats[] => {
-  if (!filter.trim()) return ips;
-  const lowerFilter = filter.toLowerCase().replace(/\s+/g, "");
+  const trimmed = filter.trim();
+  if (!trimmed) return ips;
+
+  const lowerFilter = trimmed.toLowerCase().replace(/\s+/g, "");
+
   return ips.filter((ip) => {
-    // 检查 IP 地址
-    if (ip.ip.toLowerCase().includes(lowerFilter)) return true;
+    // 1. 基础字段：IP + hostname
+    const hostname =
+      ip.ipFamily.toLowerCase() === "ipv6" ? getIpv6Display(ip.ip, true) : getIpDisplay(ip.ip);
 
-    // 检查 hostname（如果启用了 DNS）
-    let hostname = ip.ip;
-    if (ip.ipFamily.toLowerCase() === "ipv6") {
-      hostname = getIpv6Display(ip.ip, true);
-    } else {
-      hostname = getIpDisplay(ip.ip);
+    const basicFields: string[] = [ip.ip];
+    if (hostname) basicFields.push(hostname);
+
+    // 2. 流量指标配置：字段路径 + 额外检查项
+    const metricPaths: Array<{
+      metric: keyof Pick<
+        IPStats,
+        | "totalThroughput"
+        | "uploadThroughput"
+        | "downloadThroughput"
+        | "totalTraffic"
+        | "totalUpload"
+        | "totalDownload"
+        | "uploadPkts"
+        | "downloadPkts"
+        | "totalPkts"
+      >;
+    }> = [
+      { metric: "totalThroughput" },
+      { metric: "uploadThroughput" },
+      { metric: "downloadThroughput" },
+      { metric: "totalTraffic" },
+      { metric: "totalUpload" },
+      { metric: "totalDownload" },
+      { metric: "uploadPkts" },
+      { metric: "downloadPkts" },
+      { metric: "totalPkts" },
+    ];
+
+    // 收集所有需要检查的字符串
+    const searchableStrings: string[] = [...basicFields];
+
+    for (const { metric } of metricPaths) {
+      const metricData = ip[metric] as TrafficMetric;
+      if (!metricData) continue;
+
+      // 格式化后的值（数值+单位）
+      const formatted = formatMetric(metricData.value, metricData.unit);
+      searchableStrings.push(formatted);
+
+      // 原始数值
+      searchableStrings.push(String(metricData.value));
+
+      // 单位
+      searchableStrings.push(metricData.unit);
     }
-    if (hostname && hostname.toLowerCase().includes(lowerFilter)) return true;
 
-    // 检查格式化后的流量值（数值+单位）
-    const totalThroughputStr = formatMetric(ip.totalThroughput.value, ip.totalThroughput.unit);
-    const uploadThroughputStr = formatMetric(ip.uploadThroughput.value, ip.uploadThroughput.unit);
-    const downloadThroughputStr = formatMetric(
-      ip.downloadThroughput.value,
-      ip.downloadThroughput.unit,
+    // 3. 连接数
+    searchableStrings.push(String(ip.tcpCount));
+    searchableStrings.push(String(ip.udpCount));
+    searchableStrings.push(String(ip.otherCount));
+
+    // 统一检查：去空格 + 小写 + 包含判断
+    return searchableStrings.some((str) =>
+      str.toLowerCase().replace(/\s+/g, "").includes(lowerFilter),
     );
-    const totalTrafficStr = formatMetric(ip.totalTraffic.value, ip.totalTraffic.unit);
-    const totalUploadStr = formatMetric(ip.totalUpload.value, ip.totalUpload.unit);
-    const totalDownloadStr = formatMetric(ip.totalDownload.value, ip.totalDownload.unit);
-
-    if (totalThroughputStr.toLowerCase().replace(/\s+/g, "").includes(lowerFilter)) return true;
-    if (uploadThroughputStr.toLowerCase().replace(/\s+/g, "").includes(lowerFilter)) return true;
-    if (downloadThroughputStr.toLowerCase().replace(/\s+/g, "").includes(lowerFilter)) return true;
-    if (totalTrafficStr.toLowerCase().replace(/\s+/g, "").includes(lowerFilter)) return true;
-    if (totalUploadStr.toLowerCase().replace(/\s+/g, "").includes(lowerFilter)) return true;
-    if (totalDownloadStr.toLowerCase().replace(/\s+/g, "").includes(lowerFilter)) return true;
-
-    // 检查原始数值
-    if (String(ip.totalThroughput.value).includes(lowerFilter)) return true;
-    if (String(ip.uploadThroughput.value).includes(lowerFilter)) return true;
-    if (String(ip.downloadThroughput.value).includes(lowerFilter)) return true;
-    if (String(ip.totalTraffic.value).includes(lowerFilter)) return true;
-    if (String(ip.totalUpload.value).includes(lowerFilter)) return true;
-    if (String(ip.totalDownload.value).includes(lowerFilter)) return true;
-
-    // 检查单位
-    if (ip.totalThroughput.unit.toLowerCase().includes(lowerFilter)) return true;
-    if (ip.uploadThroughput.unit.toLowerCase().includes(lowerFilter)) return true;
-    if (ip.downloadThroughput.unit.toLowerCase().includes(lowerFilter)) return true;
-    if (ip.totalTraffic.unit.toLowerCase().includes(lowerFilter)) return true;
-    if (ip.totalUpload.unit.toLowerCase().includes(lowerFilter)) return true;
-    if (ip.totalDownload.unit.toLowerCase().includes(lowerFilter)) return true;
-
-    // 检查连接数
-    if (String(ip.tcpCount).includes(lowerFilter)) return true;
-    if (String(ip.udpCount).includes(lowerFilter)) return true;
-    if (String(ip.otherCount).includes(lowerFilter)) return true;
-
-    return false;
   });
 };
 
@@ -562,6 +592,21 @@ const aggregationData = computed(
         unit: detail.total_incoming.unit,
         bytes: metricUnitToBytes(detail.total_incoming),
       },
+      uploadPkts: {
+        value: detail.upload_pkts.value,
+        unit: detail.upload_pkts.unit,
+        bytes: 0,
+      },
+      downloadPkts: {
+        value: detail.download_pkts.value,
+        unit: detail.download_pkts.unit,
+        bytes: 0,
+      },
+      totalPkts: {
+        value: detail.total_pkts.value,
+        unit: detail.total_pkts.unit,
+        bytes: 0,
+      },
       tcpCount: detail.tcp,
       udpCount: detail.udp,
       otherCount: detail.other,
@@ -589,11 +634,23 @@ const aggregationData = computed(
         key,
         ips,
         totalThroughput: ips.reduce((sum, ip) => sum + ip.totalThroughput.bytes, 0),
-        UploadThroughput: ips.reduce((sum, ip) => sum + ip.uploadThroughput.bytes, 0),
-        DownloadThroughput: ips.reduce((sum, ip) => sum + ip.downloadThroughput.bytes, 0),
+        uploadThroughput: ips.reduce((sum, ip) => sum + ip.uploadThroughput.bytes, 0),
+        downloadThroughput: ips.reduce((sum, ip) => sum + ip.downloadThroughput.bytes, 0),
         totalTraffic: ips.reduce((sum, ip) => sum + ip.totalTraffic.bytes, 0),
         totalUpload: ips.reduce((sum, ip) => sum + ip.totalUpload.bytes, 0),
         totalDownload: ips.reduce((sum, ip) => sum + ip.totalDownload.bytes, 0),
+        uploadPkts: ips.reduce(
+          (sum, ip) => sum + (ip.uploadPkts.value >= 0 ? ip.uploadPkts.value : 0),
+          0,
+        ),
+        downloadPkts: ips.reduce(
+          (sum, ip) => sum + (ip.downloadPkts.value >= 0 ? ip.downloadPkts.value : 0),
+          0,
+        ),
+        totalPkts: ips.reduce(
+          (sum, ip) => sum + (ip.totalPkts.value >= 0 ? ip.totalPkts.value : 0),
+          0,
+        ),
         totalTcp: ips.reduce((sum, ip) => sum + (ip.tcpCount >= 0 ? ip.tcpCount : 0), 0),
         totalUdp: ips.reduce((sum, ip) => sum + (ip.udpCount >= 0 ? ip.udpCount : 0), 0),
         totalOther: ips.reduce((sum, ip) => sum + (ip.otherCount >= 0 ? ip.otherCount : 0), 0),
@@ -1784,7 +1841,7 @@ const getConnectionSortIcon = (columnId: string): string => {
                       <span class="text-slate-400">{{ getSortIcon("uploadThroughput") }}</span>
                     </div>
                     <span class="text-orange-400 font-mono font-semibold">
-                      {{ formatIOBytes(aggregationData[activeAggregationTab].UploadThroughput) }}
+                      {{ formatIOBytes(aggregationData[activeAggregationTab].uploadThroughput) }}
                     </span>
                   </div>
                 </th>
@@ -1798,7 +1855,7 @@ const getConnectionSortIcon = (columnId: string): string => {
                       <span class="text-slate-400">{{ getSortIcon("downloadThroughput") }}</span>
                     </div>
                     <span class="text-cyan-400 font-mono font-semibold">
-                      {{ formatIOBytes(aggregationData[activeAggregationTab].DownloadThroughput) }}
+                      {{ formatIOBytes(aggregationData[activeAggregationTab].downloadThroughput) }}
                     </span>
                   </div>
                 </th>
@@ -1841,6 +1898,48 @@ const getConnectionSortIcon = (columnId: string): string => {
                     </div>
                     <span class="text-slate-200 font-mono font-semibold">
                       {{ formatDataBytes(aggregationData[activeAggregationTab].totalDownload) }}
+                    </span>
+                  </div>
+                </th>
+                <th
+                  @click="toggleAggregationSort('uploadPkts')"
+                  class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors"
+                >
+                  <div class="flex flex-col items-center gap-1">
+                    <div class="flex items-center justify-center gap-1">
+                      每秒上行包数
+                      <span class="text-slate-400">{{ getSortIcon("uploadPkts") }}</span>
+                    </div>
+                    <span class="text-slate-200 font-mono font-semibold">
+                      {{ aggregationData[activeAggregationTab].uploadPkts }}
+                    </span>
+                  </div>
+                </th>
+                <th
+                  @click="toggleAggregationSort('downloadPkts')"
+                  class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors"
+                >
+                  <div class="flex flex-col items-center gap-1">
+                    <div class="flex items-center justify-center gap-1">
+                      每秒下行包数
+                      <span class="text-slate-400">{{ getSortIcon("downloadPkts") }}</span>
+                    </div>
+                    <span class="text-slate-200 font-mono font-semibold">
+                      {{ aggregationData[activeAggregationTab].downloadPkts }}
+                    </span>
+                  </div>
+                </th>
+                <th
+                  @click="toggleAggregationSort('totalPkts')"
+                  class="px-3 py-3 font-medium text-center whitespace-nowrap cursor-pointer select-none hover:text-white hover:bg-slate-700/50 transition-colors"
+                >
+                  <div class="flex flex-col items-center gap-1">
+                    <div class="flex items-center justify-center gap-1">
+                      每秒总数据包数
+                      <span class="text-slate-400">{{ getSortIcon("totalPkts") }}</span>
+                    </div>
+                    <span class="text-slate-200 font-mono font-semibold">
+                      {{ aggregationData[activeAggregationTab].totalPkts }}
                     </span>
                   </div>
                 </th>
@@ -1935,6 +2034,24 @@ const getConnectionSortIcon = (columnId: string): string => {
                     formatMetric(ipStats.totalDownload.value, ipStats.totalDownload.unit)
                   }}</span>
                 </td>
+                <td class="px-3 py-2 text-center">
+                  <span class="font-mono text-slate-200">{{
+                    `${ipStats.uploadPkts.value} ${ipStats.uploadPkts.unit}`
+                  }}</span>
+                </td>
+
+                <td class="px-3 py-2 text-center">
+                  <span class="font-mono text-orange-400">{{
+                    `${ipStats.downloadPkts.value} ${ipStats.downloadPkts.unit}`
+                  }}</span>
+                </td>
+
+                <td class="px-3 py-2 text-center">
+                  <span class="font-mono text-cyan-400">{{
+                    `${ipStats.totalPkts.value} ${ipStats.totalPkts.unit}`
+                  }}</span>
+                </td>
+
                 <td class="px-3 py-2 text-center">
                   <span class="font-mono text-blue-400">{{ ipStats.tcpCount }}</span>
                 </td>
